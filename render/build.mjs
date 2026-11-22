@@ -1,5 +1,6 @@
-import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -609,16 +610,42 @@ ${parts.join('\n')}
 }
 
 function drawMap(x, y, w, h, items) {
+  const pad = 8;
+  const ix = x + pad;
+  const iy = y + pad;
+  const iw = w - pad * 2;
+  const ih = h - pad * 2;
+  const inset = 6;
+  const px0 = ix + inset;
+  const py0 = iy + inset;
+  const pw = iw - inset * 2;
+  const ph = ih - inset * 2;
   const lon0 = -180;
   const lon1 = 180;
-  const lat0 = -58;
-  const lat1 = 78;
+  let lat0 = 90;
+  let lat1 = -90;
+  for (const poly of polys) {
+    for (const p of poly) {
+      if (p[1] < lat0) lat0 = p[1];
+      if (p[1] > lat1) lat1 = p[1];
+    }
+  }
+  for (const s of items) {
+    if (!s.pin) continue;
+    if (s.pin[1] < lat0) lat0 = s.pin[1];
+    if (s.pin[1] > lat1) lat1 = s.pin[1];
+  }
+  const latPad = Math.max(6, (lat1 - lat0) * 0.06);
+  lat0 -= latPad;
+  lat1 += latPad;
   const project = (lon, lat) => [
-    x + ((lon - lon0) / (lon1 - lon0)) * w,
-    y + ((lat1 - lat) / (lat1 - lat0)) * h,
+    px0 + ((lon - lon0) / (lon1 - lon0)) * pw,
+    py0 + ((lat1 - lat) / (lat1 - lat0)) * ph,
   ];
   const out = [];
+  out.push(`<defs><clipPath id="mapclip"><rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="${n(ih)}"/></clipPath></defs>`);
   out.push(el('rect', { x: n(x), y: n(y), width: n(w), height: n(h), fill: SKY, stroke: INK, 'stroke-width': 1.5 }));
+  out.push('<g clip-path="url(#mapclip)">');
   for (const poly of polys) {
     const d = poly.map((p, i) => {
       const [px, py] = project(p[0], p[1]);
@@ -631,8 +658,11 @@ function drawMap(x, y, w, h, items) {
   const [ex2] = project(lon1, 0);
   out.push(el('path', { d: `M${n(ex1)} ${n(ey)} H${n(ex2)}`, stroke: MUST, 'stroke-width': 1, fill: 'none' }));
 
+  const pinM = 5;
   const pins = items.filter((s) => s.pin).map((s) => {
-    const [px, py] = project(s.pin[0], s.pin[1]);
+    let [px, py] = project(s.pin[0], s.pin[1]);
+    px = Math.min(Math.max(px, ix + pinM), ix + iw - pinM);
+    py = Math.min(Math.max(py, iy + pinM), iy + ih - pinM);
     return { id: s.id, x: px, y: py, lon: s.pin[0], lat: s.pin[1], region: s.region };
   });
   const parent = pins.map((_, i) => i);
@@ -656,7 +686,7 @@ function drawMap(x, y, w, h, items) {
   }
 
   const obstacles = pins.map((p) => ({ x: p.x - 4, y: p.y - 4, w: 8, h: 8 }));
-  const bounds = { x, y, w, h };
+  const bounds = { x: ix + 1, y: iy + 1, w: iw - 2, h: ih - 2 };
   function overlap(a, b, m = 1) {
     return a.x < b.x + b.w + m && a.x + a.w + m > b.x && a.y < b.y + b.h + m && a.y + a.h + m > b.y;
   }
@@ -713,9 +743,13 @@ function drawMap(x, y, w, h, items) {
       break;
     }
     if (!box) {
+      const minX = bounds.x;
+      const minY = bounds.y;
+      const maxX = bounds.x + bounds.w - bw;
+      const maxY = bounds.y + bounds.h - bh;
       box = {
-        x: Math.min(Math.max(cx + 6, bounds.x + 1), bounds.x + bounds.w - bw - 1),
-        y: Math.min(Math.max(cy - bh - 4, bounds.y + 1), bounds.y + bounds.h - bh - 1),
+        x: maxX >= minX ? Math.min(Math.max(cx + 6, minX), maxX) : minX,
+        y: maxY >= minY ? Math.min(Math.max(cy - bh - 4, minY), maxY) : minY,
         w: bw, h: bh,
       };
     }
@@ -737,6 +771,7 @@ function drawMap(x, y, w, h, items) {
       }));
     });
   }
+  out.push('</g>');
   return out.join('');
 }
 
@@ -756,26 +791,44 @@ ${svg.replace(/^<\?xml[^>]*>\s*/, '')}
 </body>
 </html>
 `;
-const htmlPath = join(root, 'poster.html');
-const rawPath = join(root, 'entry.raw.png');
-const pngPath = join(root, 'entry.png');
-const previewPath = join(root, 'preview.png');
+const tmp = mkdtempSync(join(tmpdir(), 'globe-'));
+const htmlPath = join(tmp, 'poster.html');
+const rawPath = join(tmp, 'entry.raw.png');
+const pngPath = join(tmp, 'entry.png');
+const previewPath = join(tmp, 'preview.png');
+const profile = join(tmp, 'chrome');
 writeFileSync(htmlPath, html);
 
-const chrome = spawnSync('google-chrome', [
-  '--headless=new',
-  '--disable-gpu',
-  '--no-sandbox',
-  '--hide-scrollbars',
-  '--force-device-scale-factor=1',
-  '--disable-extensions',
-  '--no-first-run',
-  '--default-background-color=FFF6F0E4',
-  `--window-size=1024,1024`,
-  `--screenshot=${rawPath}`,
-  pathToFileURL(htmlPath).href,
-], { stdio: 'inherit', timeout: 60000 });
-if (chrome.status !== 0) process.exit(chrome.status ?? 1);
+const chromeEnv = {
+  ...process.env,
+  HOME: tmp,
+  TMPDIR: tmp,
+  XDG_CONFIG_HOME: join(tmp, 'xdg'),
+  XDG_CACHE_HOME: join(tmp, 'cache'),
+};
+function launchChrome(extra, timeout) {
+  return spawnSync('google-chrome', [
+    '--headless=new',
+    '--disable-gpu',
+    '--no-sandbox',
+    '--hide-scrollbars',
+    '--force-device-scale-factor=1',
+    '--disable-extensions',
+    '--no-first-run',
+    '--no-default-browser-check',
+    ...extra,
+    '--window-size=1024,1024',
+    `--screenshot=${rawPath}`,
+    pathToFileURL(htmlPath).href,
+  ], { stdio: 'inherit', timeout, env: chromeEnv });
+}
+let chrome = launchChrome([`--user-data-dir=${profile}`], 12000);
+if (chrome.status !== 0 || !existsSync(rawPath)) {
+  spawnSync('pkill', ['-f', profile], { stdio: 'ignore' });
+  try { unlinkSync(rawPath); } catch { /* no partial screenshot */ }
+  chrome = launchChrome([], 30000);
+}
+if (chrome.status !== 0 || !existsSync(rawPath)) process.exit(chrome.status ?? 1);
 
 const py = spawnSync('python3', ['-c', `
 from PIL import Image
@@ -800,4 +853,30 @@ if (py.status !== 0) {
   process.exit(py.status ?? 1);
 }
 process.stdout.write(py.stdout);
-unlinkSync(rawPath);
+
+function copyPublished(src, dest) {
+  try {
+    copyFileSync(src, dest);
+    return true;
+  } catch (err) {
+    if (err.code === 'EROFS' || err.code === 'EACCES' || err.code === 'EPERM') return false;
+    throw err;
+  }
+}
+const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+let published = false;
+try {
+  mkdirSync(outDir, { recursive: true });
+  published = copyPublished(pngPath, join(outDir, 'entry.png'));
+} catch (err) {
+  if (err.code !== 'EROFS' && err.code !== 'EACCES' && err.code !== 'EPERM') throw err;
+}
+const localPng = copyPublished(pngPath, join(root, 'entry.png'));
+copyPublished(previewPath, join(root, 'preview.png'));
+copyPublished(htmlPath, join(root, 'poster.html'));
+if (!published && !localPng) {
+  console.error('entry.png could not be written');
+  process.exit(1);
+}
+const shown = localPng ? join(root, 'entry.png') : join(outDir, 'entry.png');
+console.log(`${shown} ${statSync(shown).size} bytes`);

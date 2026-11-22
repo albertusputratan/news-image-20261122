@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,6 +10,13 @@ const run = spawnSync(process.execPath, [join(root, 'render', 'build.mjs')], {
 });
 if (run.status !== 0) process.exit(run.status ?? 1);
 
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-mkdirSync(outDir, { recursive: true });
-copyFileSync(join(root, 'entry.png'), join(outDir, 'entry.png'));
+const src = join(root, 'entry.png');
+if (existsSync(src)) {
+  const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+  try {
+    mkdirSync(outDir, { recursive: true });
+    copyFileSync(src, join(outDir, 'entry.png'));
+  } catch (err) {
+    if (err.code !== 'EROFS' && err.code !== 'EACCES' && err.code !== 'EPERM') throw err;
+  }
+}
