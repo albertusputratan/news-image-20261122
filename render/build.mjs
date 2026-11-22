@@ -1,572 +1,803 @@
-import { readFile, writeFile, unlink } from "node:fs/promises";
-import { spawnSync } from "node:child_process";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const root = dirname(here);
-const data = JSON.parse(await readFile(join(root, "news.json"), "utf8"));
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const news = JSON.parse(readFileSync(join(root, 'news.json'), 'utf8'));
+const land = JSON.parse(readFileSync(join(root, 'render', 'land.json'), 'utf8'));
 
-const COLOR = {
-  EUR: "#1E3A5F",
-  MEA: "#8C3A2F",
-  AFR: "#2F5D38",
-  SAS: "#8A5A12",
-  EAS: "#0E6B6B",
-  OCE: "#1F4E79",
-  AME: "#5C3D6E",
-  GLB: "#3E4651",
+const INK = '#1B2A4A';
+const RED = '#E23C2F';
+const MUST = '#F0B429';
+const TEAL = '#1F8A70';
+const CORAL = '#F26B5B';
+const SKY = '#5BA4D0';
+const CREAM = '#FBF8F2';
+const PAPER = '#F6F0E4';
+const WHITE = '#FFFFFF';
+const PLAY = 'Playfair Display, "Source Serif Pro", serif';
+const SERIF = '"Source Serif Pro", "Liberation Serif", serif';
+const SANS = 'Inter, "Liberation Sans", sans-serif';
+
+const REGIONS = ['EUR', 'MEA', 'AFR', 'SAS', 'EAS', 'OCE', 'AME'];
+const REGION_NAME = {
+  EUR: 'EUROPE', MEA: 'MIDDLE EAST', AFR: 'AFRICA', SAS: 'SOUTH ASIA',
+  EAS: 'EAST ASIA', OCE: 'OCEANIA', AME: 'AMERICAS',
+};
+const REGION_FILL = {
+  EUR: INK, MEA: RED, AFR: MUST, SAS: TEAL, EAS: SKY, OCE: CORAL, AME: CREAM,
+};
+const REGION_INK = {
+  EUR: WHITE, MEA: WHITE, AFR: INK, SAS: WHITE, EAS: INK, OCE: INK, AME: INK,
+};
+const TAG_FILL = {
+  CONFIRMED: TEAL, REPORTED: SKY, OFFICIAL: INK, CLAIM: MUST, FORECAST: CORAL,
 };
 
-const counts = Object.fromEntries(data.regionOrder.map((code) => [code, 0]));
-for (const story of data.stories) counts[story.region] += 1;
-
-function esc(value) {
-  return String(value).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+const stories = [...news.stories].sort((a, b) => a.id - b.id);
+if (stories.length < 45 || stories.length > 49) {
+  throw new Error(`story count ${stories.length}`);
+}
+const leads = stories.filter((s) => s.tier === 'lead');
+const mids = stories.filter((s) => s.tier === 'mid');
+const briefs = stories.filter((s) => s.tier === 'brief');
+if (leads.length !== 4 || mids.length !== 10) {
+  throw new Error('expected 4 leads and 10 mids');
 }
 
-function br(value) {
-  return esc(value).replace(/\n/g, "<br>");
+const counts = Object.fromEntries(REGIONS.map((r) => [r, 0]));
+for (const s of stories) counts[s.region] += 1;
+if (REGIONS.some((r) => !counts[r])) throw new Error('missing region');
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function el(tag, attrs, inner) {
+  const body = Object.entries(attrs)
+    .filter(([, v]) => v !== undefined && v !== null)
+    .map(([k, v]) => `${k}="${v}"`)
+    .join(' ');
+  return inner == null ? `<${tag} ${body}/>` : `<${tag} ${body}>${inner}</${tag}>`;
+}
+function n(v) { return Math.round(v * 100) / 100; }
+function baseline(top, fs, lh, i = 0) {
+  const box = fs * lh;
+  const half = (box - fs) / 2;
+  return top + i * box + half + fs * 0.8;
+}
+function txt(x, y, str, o) {
+  return el('text', {
+    x: n(x), y: n(y),
+    'font-family': o.family, 'font-size': o.size, 'font-weight': o.weight ?? 400,
+    fill: o.fill, 'text-anchor': o.anchor ?? 'start', stroke: 'none',
+  }, esc(str));
+}
+function shape(tag, attrs) {
+  return el(tag, {
+    stroke: INK, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+    ...attrs,
+  });
 }
 
-function cricket() {
-  const seats = [];
-  for (let row = 0; row < 4; row += 1) {
-    for (let i = 0; i < 16; i += 1) {
-      seats.push(`<circle cx="${10 + i * 13}" cy="${22 + row * 7}" r="1.7" fill="#F4EFE4"/>`);
+function scoop(cx, cy, s) {
+  const r = 8 * s;
+  const brim = cy - r * 0.72;
+  const out = [];
+  out.push(shape('path', {
+    d: `M${n(cx - r * 1.2)} ${n(brim)} L${n(cx - r * 0.72)} ${n(brim - r * 0.78)} H${n(cx + r * 0.72)} L${n(cx + r * 1.2)} ${n(brim)} Z`,
+    fill: CREAM,
+  }));
+  out.push(el('rect', {
+    x: n(cx - r * 0.5), y: n(brim - r * 0.62), width: n(r), height: n(r * 0.26),
+    fill: RED, stroke: 'none',
+  }));
+  out.push(shape('circle', { cx: n(cx), cy: n(cy), r: n(r), fill: SKY }));
+  out.push(shape('ellipse', { cx: n(cx), cy: n(cy), rx: n(r * 0.4), ry: n(r), fill: 'none', 'stroke-width': 1.5 }));
+  out.push(shape('path', { d: `M${n(cx - r)} ${n(cy)} H${n(cx + r)}`, fill: 'none', 'stroke-width': 1.5 }));
+  out.push(el('circle', { cx: n(cx - r * 0.32), cy: n(cy - r * 0.06), r: n(1.15 * s), fill: INK, stroke: 'none' }));
+  out.push(el('circle', { cx: n(cx + r * 0.34), cy: n(cy - r * 0.06), r: n(1.15 * s), fill: INK, stroke: 'none' }));
+  out.push(shape('path', {
+    d: `M${n(cx - r * 0.62)} ${n(cy - r * 0.32)} Q${n(cx - r * 0.32)} ${n(cy - r * 0.7)} ${n(cx - r * 0.02)} ${n(cy - r * 0.3)}`,
+    fill: 'none',
+  }));
+  out.push(shape('path', {
+    d: `M${n(cx + r * 0.1)} ${n(cy - r * 0.4)} H${n(cx + r * 0.62)}`,
+    fill: 'none',
+  }));
+  out.push(shape('path', {
+    d: `M${n(cx - r * 0.26)} ${n(cy + r * 0.36)} Q${n(cx)} ${n(cy + r * 0.58)} ${n(cx + r * 0.26)} ${n(cy + r * 0.36)}`,
+    fill: 'none', 'stroke-width': 1.5,
+  }));
+  return out.join('');
+}
+
+function bubble(x, y, w, h, label) {
+  return [
+    shape('rect', { x: n(x), y: n(y), width: n(w), height: n(h), rx: 2, fill: CREAM }),
+    shape('path', {
+      d: `M${n(x + 10)} ${n(y + h - 1)} L${n(x + 6)} ${n(y + h + 6)} L${n(x + 22)} ${n(y + h - 1)}`,
+      fill: CREAM,
+    }),
+    el('rect', { x: n(x + 8), y: n(y + h - 3), width: 16, height: 5, fill: CREAM, stroke: 'none' }),
+    txt(x + w / 2, y + h * 0.72, label, { family: SANS, size: 8, weight: 700, fill: INK, anchor: 'middle' }),
+  ].join('');
+}
+
+function frame(w, h) {
+  return shape('rect', { x: 1, y: 1, width: n(w - 2), height: n(h - 2), fill: 'none' });
+}
+
+function artCop(w, h) {
+  return [
+    el('rect', { width: w, height: h, fill: SKY, stroke: 'none' }),
+    el('rect', { y: n(h * 0.7), width: w, height: n(h * 0.3), fill: MUST, stroke: 'none' }),
+    shape('circle', { cx: 30, cy: 26, r: 13, fill: MUST }),
+    shape('rect', { x: 82, y: 36, width: 70, height: 42, fill: CREAM }),
+    shape('rect', { x: 108, y: 58, width: 16, height: 20, fill: TEAL }),
+    el('rect', { x: 90, y: 42, width: 54, height: 12, fill: RED, stroke: 'none' }),
+    txt(117, 51.5, 'COP31', { family: SANS, size: 8, weight: 700, fill: WHITE, anchor: 'middle' }),
+    shape('circle', { cx: 188, cy: 32, r: 16, fill: CREAM }),
+    shape('path', { d: 'M188 32 V20 M188 32 L198 36', fill: 'none' }),
+    el('circle', { cx: 188, cy: 32, r: 1.6, fill: INK, stroke: 'none' }),
+    [0, 1, 2].map((i) => shape('circle', { cx: 150 + i * 16, cy: 92, r: 6, fill: i === 1 ? CORAL : TEAL })).join(''),
+    scoop(40, 86, 0.9),
+    bubble(46, 6, 82, 16, 'No gavel yet.'),
+    frame(w, h),
+  ].join('');
+}
+
+function artBahrain(w, h) {
+  return [
+    el('rect', { width: w, height: h, fill: CREAM, stroke: 'none' }),
+    el('rect', { y: 72, width: w, height: n(h - 72), fill: TEAL, stroke: 'none' }),
+    shape('path', { d: 'M18 28 H46 M24 22 H40', fill: 'none' }),
+    shape('path', { d: 'M32 22 V40', fill: 'none' }),
+    shape('circle', { cx: 32, cy: 18, r: 4, fill: SKY }),
+    [70, 112, 154].map((cx, i) => shape('ellipse', {
+      cx, cy: 62, rx: 18, ry: 14, fill: i === 1 ? CORAL : CREAM,
+    })).join(''),
+    shape('path', { d: 'M104 48 L112 28 L120 48 Z', fill: RED }),
+    shape('path', { d: 'M108 40 L114 22 L118 36', fill: MUST, 'stroke-width': 1.5 }),
+    shape('path', { d: 'M40 48 Q90 20 150 36', fill: 'none', stroke: CORAL }),
+    shape('path', { d: 'M48 58 Q100 28 168 46', fill: 'none', stroke: SKY }),
+    frame(w, h),
+  ].join('');
+}
+
+function artSparta(w, h) {
+  return [
+    el('rect', { width: w, height: h, fill: TEAL, stroke: 'none' }),
+    shape('path', { d: `M0 78 Q28 70 56 78 T112 78 T168 78 T224 78`, fill: 'none', stroke: CREAM, 'stroke-width': 2 }),
+    shape('path', { d: `M0 92 Q30 84 60 92 T120 92 T180 92 T226 92`, fill: 'none', stroke: SKY, 'stroke-width': 2 }),
+    shape('path', { d: 'M48 70 L70 48 H150 L176 70 Z', fill: INK }),
+    shape('rect', { x: 86, y: 34, width: 36, height: 18, fill: CREAM }),
+    shape('path', { d: 'M118 34 V22', fill: 'none' }),
+    shape('path', { d: 'M128 46 L140 24 L148 46 Z', fill: RED }),
+    shape('circle', { cx: 156, cy: 28, r: 8, fill: CREAM }),
+    shape('circle', { cx: 170, cy: 18, r: 6, fill: PAPER, 'stroke-width': 1.5 }),
+    frame(w, h),
+  ].join('');
+}
+
+function artPant(w, h) {
+  return [
+    el('rect', { width: w, height: 48, fill: SKY, stroke: 'none' }),
+    el('rect', { y: 48, width: w, height: n(h - 48), fill: TEAL, stroke: 'none' }),
+    shape('rect', { x: 70, y: 58, width: 70, height: 40, fill: CREAM }),
+    shape('path', { d: 'M100 58 V98 M78 78 H132', fill: 'none', 'stroke-width': 1.5 }),
+    shape('path', { d: 'M96 96 V86 M104 96 V86 M100 86 V80', fill: 'none' }),
+    shape('circle', { cx: 124, cy: 70, r: 7, fill: MUST }),
+    shape('path', { d: 'M124 77 V96 M116 84 H132 M118 96 H130', fill: 'none' }),
+    shape('path', { d: 'M128 72 L158 40 L164 48 L134 78 Z', fill: MUST }),
+    el('circle', { cx: 150, cy: 36, r: 5, fill: RED, stroke: INK, 'stroke-width': 2 }),
+    shape('rect', { x: 168, y: 14, width: 46, height: 22, fill: CREAM }),
+    txt(191, 30, '128', { family: PLAY, size: 14, weight: 700, fill: INK, anchor: 'middle' }),
+    scoop(36, 78, 0.85),
+    bubble(52, 6, 86, 16, 'Look surprised.'),
+    frame(w, h),
+  ].join('');
+}
+
+function artHk(w, h) {
+  const barW = w - 70;
+  return [
+    el('rect', { width: w, height: h, fill: CREAM, stroke: 'none' }),
+    shape('rect', { x: 8, y: 8, width: 36, height: 38, fill: RED }),
+    el('rect', { x: 20, y: 8, width: 12, height: 8, fill: CREAM, stroke: 'none' }),
+    shape('rect', { x: 56, y: 22, width: barW, height: 12, fill: PAPER }),
+    el('rect', { x: 56, y: 22, width: n(barW * 0.45), height: 12, fill: MUST, stroke: 'none' }),
+    txt(58, 16, '45% first hour', { family: SANS, size: 9, weight: 700, fill: INK }),
+    frame(w, h),
+  ].join('');
+}
+
+function artMexico(w, h) {
+  const fig = (x, fill) => [
+    shape('circle', { cx: x, cy: 16, r: 6, fill }),
+    shape('rect', { x: x - 7, y: 24, width: 14, height: 18, fill }),
+  ].join('');
+  return [
+    el('rect', { width: w, height: h, fill: MUST, stroke: 'none' }),
+    fig(36, TEAL), fig(62, CORAL), fig(88, TEAL),
+    shape('rect', { x: 112, y: 14, width: 52, height: 22, fill: RED }),
+    txt(138, 29, 'HELD', { family: SANS, size: 11, weight: 700, fill: WHITE, anchor: 'middle' }),
+    frame(w, h),
+  ].join('');
+}
+
+function artNato(w, h) {
+  return [
+    el('rect', { width: w, height: h, fill: CREAM, stroke: 'none' }),
+    shape('path', {
+      d: 'M28 8 L52 8 L60 28 L40 48 L20 28 Z',
+      fill: TEAL,
+    }),
+    shape('path', { d: 'M40 16 V36 M30 26 H50', fill: 'none', stroke: WHITE, 'stroke-width': 2 }),
+    scoop(148, 34, 0.7),
+    bubble(78, 4, 64, 14, 'Every inch.'),
+    frame(w, h),
+  ].join('');
+}
+
+function artTalks(w, h) {
+  return [
+    el('rect', { width: w, height: h, fill: PAPER, stroke: 'none' }),
+    shape('rect', { x: 16, y: 18, width: 28, height: 26, fill: TEAL }),
+    shape('rect', { x: 16, y: 10, width: 8, height: 20, fill: TEAL }),
+    shape('rect', { x: 132, y: 18, width: 28, height: 26, fill: CORAL }),
+    shape('rect', { x: 152, y: 10, width: 8, height: 20, fill: CORAL }),
+    shape('rect', { x: 52, y: 28, width: 72, height: 8, fill: MUST }),
+    shape('path', { d: 'M78 8 H96 L92 20 H74 Z', fill: SKY }),
+    shape('path', { d: 'M100 8 H112 L120 20 H104 Z', fill: CREAM }),
+    frame(w, h),
+  ].join('');
+}
+
+function artPower(w, h) {
+  return [
+    el('rect', { width: w, height: h, fill: PAPER, stroke: 'none' }),
+    shape('rect', { x: 8, y: 22, width: 22, height: 28, fill: INK }),
+    shape('rect', { x: 34, y: 10, width: 26, height: 40, fill: INK }),
+    shape('rect', { x: 64, y: 18, width: 20, height: 32, fill: INK }),
+    el('rect', { x: 14, y: 28, width: 6, height: 6, fill: MUST, stroke: 'none' }),
+    el('rect', { x: 40, y: 16, width: 6, height: 6, fill: PAPER, stroke: 'none' }),
+    el('rect', { x: 50, y: 28, width: 6, height: 6, fill: MUST, stroke: 'none' }),
+    shape('circle', { cx: 130, cy: 24, r: 14, fill: CREAM }),
+    el('path', { d: 'M116 24 H144', stroke: 'none', fill: 'none' }),
+    el('rect', { x: 116, y: 24, width: 28, height: 14, fill: PAPER, stroke: 'none' }),
+    shape('rect', { x: 124, y: 36, width: 12, height: 6, fill: INK }),
+    frame(w, h),
+  ].join('');
+}
+
+function artIcu(w, h) {
+  return [
+    el('rect', { width: w, height: h, fill: CREAM, stroke: 'none' }),
+    shape('rect', { x: 8, y: 28, width: 78, height: 16, fill: PAPER }),
+    shape('path', { d: 'M8 28 V22 H86 V28', fill: 'none' }),
+    shape('rect', { x: 100, y: 8, width: 64, height: 28, fill: INK }),
+    shape('path', {
+      d: 'M106 22 H118 L124 12 L132 30 L140 18 H158',
+      fill: 'none', stroke: TEAL, 'stroke-width': 2,
+    }),
+    shape('rect', { x: 78, y: 8, width: 14, height: 14, fill: TEAL }),
+    el('path', { d: 'M85 10 V20 M80 15 H90', stroke: WHITE, 'stroke-width': 2, fill: 'none' }),
+    frame(w, h),
+  ].join('');
+}
+
+function artTennis(w, h) {
+  return [
+    el('rect', { width: w, height: h, fill: TEAL, stroke: 'none' }),
+    shape('rect', { x: 8, y: 8, width: 100, height: 38, fill: CREAM }),
+    shape('path', { d: 'M58 8 V46 M8 27 H108', fill: 'none', 'stroke-width': 1.5 }),
+    shape('circle', { cx: 28, cy: 20, r: 5, fill: CORAL }),
+    shape('circle', { cx: 86, cy: 34, r: 5, fill: SKY }),
+    shape('path', { d: 'M124 40 L132 12 H148 L156 40 Z', fill: MUST }),
+    shape('rect', { x: 130, y: 8, width: 20, height: 6, fill: RED }),
+    scoop(168, 36, 0.62),
+    bubble(112, 2, 62, 13, 'Still boxed.'),
+    frame(w, h),
+  ].join('');
+}
+
+function artMcg(w, h) {
+  return [
+    el('rect', { width: w, height: h, fill: SKY, stroke: 'none' }),
+    shape('path', { d: `M16 ${h - 8} Q${w / 2} 10 ${w - 16} ${h - 8}`, fill: CREAM }),
+    txt(48, 36, '70', { family: PLAY, size: 26, weight: 700, fill: RED }),
+    shape('path', { d: 'M120 34 C120 18 148 18 148 34', fill: 'none' }),
+    shape('path', { d: 'M128 34 V46 H140 V34', fill: 'none' }),
+    el('path', { d: 'M134 22 L138 14 L142 22 Z', fill: MUST, stroke: INK, 'stroke-width': 2 }),
+    frame(w, h),
+  ].join('');
+}
+
+function artAukus(w, h) {
+  return [
+    el('rect', { width: w, height: h, fill: CREAM, stroke: 'none' }),
+    shape('ellipse', { cx: 70, cy: 32, rx: 52, ry: 14, fill: TEAL }),
+    shape('rect', { x: 78, y: 12, width: 16, height: 14, fill: TEAL }),
+    shape('path', { d: 'M20 26 L8 20 V44 L20 38 Z', fill: TEAL }),
+    shape('rect', { x: 128, y: 10, width: 36, height: 30, fill: PAPER }),
+    shape('path', { d: 'M134 16 L158 34 M158 16 L134 34', fill: 'none', stroke: RED, 'stroke-width': 2 }),
+    frame(w, h),
+  ].join('');
+}
+
+function artBoat(w, h) {
+  return [
+    el('rect', { width: w, height: h, fill: SKY, stroke: 'none' }),
+    el('rect', { y: 28, width: w, height: n(h - 28), fill: TEAL, stroke: 'none' }),
+    shape('path', { d: 'M36 30 L48 44 H120 L132 30 Z', fill: MUST }),
+    shape('path', { d: 'M70 30 V14 H98 V30', fill: 'none' }),
+    shape('circle', { cx: 150, cy: 24, r: 10, fill: CREAM }),
+    shape('circle', { cx: 150, cy: 24, r: 4, fill: 'none' }),
+    frame(w, h),
+  ].join('');
+}
+
+const ART = {
+  cop31: artCop, bahrain: artBahrain, sparta: artSparta, pant: artPant,
+  hk: artHk, mexico: artMexico, nato: artNato, talks: artTalks, power: artPower,
+  icu: artIcu, tennis: artTennis, mcg: artMcg, aukus: artAukus, boat: artBoat,
+};
+
+function pip(poly, x, y) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+const polys = Object.values(land);
+function onLand(lon, lat) {
+  return polys.some((p) => pip(p, lon, lat));
+}
+for (const s of stories) {
+  if (!s.pin) continue;
+  const hit = onLand(s.pin[0], s.pin[1]);
+  if (s.water && hit) throw new Error(`sea pin ${s.id} sits on land`);
+  if (!s.water && !hit) throw new Error(`land pin ${s.id} is off the map shapes`);
+}
+
+function segmentWidths(total) {
+  const sum = REGIONS.reduce((a, r) => a + counts[r], 0);
+  const raw = REGIONS.map((r) => (total * counts[r]) / sum);
+  const widths = raw.map((v) => Math.floor(v));
+  let left = total - widths.reduce((a, b) => a + b, 0);
+  const order = raw.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0]);
+  for (let k = 0; k < left; k++) widths[order[k][1]] += 1;
+  return widths;
+}
+
+function buildSvg() {
+  const W = 1024;
+  const M = 16;
+  const inner = W - M * 2;
+  const parts = [];
+  parts.push(el('rect', { width: W, height: W, fill: PAPER, stroke: 'none' }));
+
+  let y = M;
+  const kickerFs = 13;
+  const kickerBase = baseline(y, kickerFs, 1.2);
+  parts.push(txt(M, kickerBase, news.masthead, { family: SANS, size: kickerFs, weight: 700, fill: RED }));
+  parts.push(txt(M + 158, kickerBase, `${stories.length} STORIES · 7 REGIONS · SUNDAY 22 NOVEMBER 2026`, {
+    family: SANS, size: 11, weight: 600, fill: INK,
+  }));
+  y += 16 + 1;
+
+  const dateFs = 40;
+  const dateLh = 1.16;
+  parts.push(txt(M, baseline(y, dateFs, dateLh), news.date, {
+    family: PLAY, size: dateFs, weight: 700, fill: INK,
+  }));
+  y += dateFs * dateLh + 2;
+
+  const standFs = 12.5;
+  const standLh = 1.3;
+  parts.push(txt(M, baseline(y, standFs, standLh), news.standfirst, {
+    family: SERIF, size: standFs, weight: 400, fill: INK,
+  }));
+  y += standFs * standLh + 3;
+
+  const scoopH = 26;
+  parts.push(shape('rect', { x: M, y: n(y), width: inner, height: scoopH, fill: CREAM, 'stroke-width': 1.5 }));
+  parts.push(scoop(M + 18, y + 15, 0.72));
+  parts.push(txt(M + 36, y + 17, `Scoop · ${news.scoopLine}`, {
+    family: SERIF, size: 12, weight: 400, fill: INK,
+  }));
+  y += scoopH + 4;
+
+  const kpiH = 40;
+  const kpiGap = 6;
+  const kpiW = Math.floor((inner - kpiGap * 5) / 6);
+  const labelFs = 8;
+  const labelLh = 1.2;
+  const valueFs = 13;
+  const valueLh = 1.15;
+  const kpiBlock = labelFs * labelLh + 2 + valueFs * valueLh;
+  const kpiPad = (kpiH - kpiBlock) / 2;
+  news.kpis.forEach((k, i) => {
+    const x = M + i * (kpiW + kpiGap);
+    parts.push(shape('rect', { x: n(x), y: n(y), width: kpiW, height: kpiH, fill: CREAM, 'stroke-width': 1.5 }));
+    const anchor = k.align === 'right' ? 'end' : 'start';
+    const tx = k.align === 'right' ? x + kpiW - 8 : x + 8;
+    parts.push(txt(tx, baseline(y + kpiPad, labelFs, labelLh), k.label, {
+      family: SANS, size: labelFs, weight: 700, fill: INK, anchor,
+    }));
+    parts.push(txt(tx, baseline(y + kpiPad + labelFs * labelLh + 2, valueFs, valueLh), k.value, {
+      family: SANS, size: valueFs, weight: 700, fill: INK, anchor,
+    }));
+  });
+  y += kpiH + 3;
+
+  const tickH = 16;
+  const tickW = inner / news.ticks.length;
+  news.ticks.forEach((t, i) => {
+    const cx = M + tickW * i + tickW / 2;
+    parts.push(txt(cx, baseline(y, 9, 1.25), t, {
+      family: SANS, size: 9, weight: 600, fill: INK, anchor: 'middle',
+    }));
+  });
+  y += tickH + 3;
+
+  const regionH = 22;
+  const widths = segmentWidths(inner);
+  let rx = M;
+  REGIONS.forEach((r, i) => {
+    parts.push(el('rect', {
+      x: n(rx), y: n(y), width: widths[i], height: regionH,
+      fill: REGION_FILL[r], stroke: INK, 'stroke-width': 1,
+    }));
+    parts.push(txt(rx + 6, y + 15, `${r} ${counts[r]}`, {
+      family: SANS, size: 11, weight: 700, fill: REGION_INK[r],
+    }));
+    rx += widths[i];
+  });
+  y += regionH + 5;
+
+  const gap = 8;
+  const leadW = (inner - gap * 3) / 4;
+  const pad = 8;
+  const artH = 110;
+  const artGap = 10;
+  const titleFs = 13;
+  const titleLh = 1.18;
+  const beforeDeck = 4;
+  const deckFs = 10.5;
+  const deckLh = 1.32;
+  const beforeMeta = 3;
+  const metaFs = 8.5;
+  const metaLh = 1.3;
+  const leadH = pad + artH + artGap + titleFs * titleLh * 2 + beforeDeck + deckFs * deckLh * 2 + beforeMeta + metaFs * metaLh + pad;
+
+  leads.forEach((s, i) => {
+    const x = M + i * (leadW + gap);
+    parts.push(shape('rect', { x: n(x), y: n(y), width: n(leadW), height: n(leadH), fill: CREAM, 'stroke-width': 1.5 }));
+    const aw = leadW - pad * 2;
+    parts.push(`<g transform="translate(${n(x + pad)},${n(y + pad)})">${ART[s.art](aw, artH)}</g>`);
+    let ty = y + pad + artH + artGap;
+    s.title.forEach((line, li) => {
+      parts.push(txt(x + pad, baseline(ty, titleFs, titleLh, li), line, {
+        family: PLAY, size: titleFs, weight: 700, fill: INK,
+      }));
+    });
+    ty += titleFs * titleLh * 2 + beforeDeck;
+    s.deck.forEach((line, li) => {
+      parts.push(txt(x + pad, baseline(ty, deckFs, deckLh, li), line, {
+        family: SERIF, size: deckFs, weight: 400, fill: INK,
+      }));
+    });
+    ty += deckFs * deckLh * 2 + beforeMeta;
+    const meta = `${String(s.id).padStart(2, '0')} · ${s.tag} · ${s.source}`;
+    parts.push(txt(x + pad, baseline(ty, metaFs, metaLh), meta, {
+      family: SANS, size: metaFs, weight: 700, fill: TAG_FILL[s.tag],
+    }));
+  });
+  y += leadH + 5;
+
+  const midW = (inner - gap * 4) / 5;
+  const midArt = 54;
+  const midArtGap = 8;
+  const midTitleFs = 11.5;
+  const midTitleLh = 1.18;
+  const midBefore = 3;
+  const midDeckFs = 9.5;
+  const midDeckLh = 1.32;
+  const midMetaFs = 8;
+  const midMetaLh = 1.3;
+  const midH = pad + midArt + midArtGap + midTitleFs * midTitleLh * 2 + midBefore + midDeckFs * midDeckLh + 2 + midMetaFs * midMetaLh + pad;
+
+  mids.forEach((s, i) => {
+    const col = i % 5;
+    const row = Math.floor(i / 5);
+    const x = M + col * (midW + gap);
+    const cy = y + row * (midH + 5);
+    parts.push(shape('rect', { x: n(x), y: n(cy), width: n(midW), height: n(midH), fill: CREAM, 'stroke-width': 1.5 }));
+    const aw = midW - pad * 2;
+    parts.push(`<g transform="translate(${n(x + pad)},${n(cy + pad)})">${ART[s.art](aw, midArt)}</g>`);
+    let ty = cy + pad + midArt + midArtGap;
+    s.title.forEach((line, li) => {
+      parts.push(txt(x + pad, baseline(ty, midTitleFs, midTitleLh, li), line, {
+        family: PLAY, size: midTitleFs, weight: 700, fill: INK,
+      }));
+    });
+    ty += midTitleFs * midTitleLh * 2 + midBefore;
+    parts.push(txt(x + pad, baseline(ty, midDeckFs, midDeckLh), s.deck[0], {
+      family: SERIF, size: midDeckFs, weight: 400, fill: INK,
+    }));
+    ty += midDeckFs * midDeckLh + 2;
+    const meta = `${String(s.id).padStart(2, '0')} · ${s.tag} · ${s.source}`;
+    parts.push(txt(x + pad, baseline(ty, midMetaFs, midMetaLh), meta, {
+      family: SANS, size: midMetaFs, weight: 700, fill: TAG_FILL[s.tag],
+    }));
+  });
+  y += midH * 2 + 5 + 5;
+
+  const bottomLimit = W - M;
+  const dateFs2 = 10.5;
+  const dateLh2 = 1.3;
+  const dateH = 7 + dateFs2 * dateLh2 + 7;
+  const footFs = 10;
+  const footH = footFs * 1.3;
+  const mapTop = y;
+  const mapBottom = bottomLimit - dateH - 4 - footH - 3;
+  if (mapBottom - mapTop < 180) throw new Error(`map band too short ${mapBottom - mapTop}`);
+
+  const mapW = 268;
+  const briefsX = M + mapW + 8;
+  const titleFs2 = 11;
+  parts.push(txt(M, baseline(mapTop, titleFs2, 1.2), 'WHERE IT HAPPENED', {
+    family: SANS, size: titleFs2, weight: 700, fill: INK,
+  }));
+  parts.push(txt(briefsX, baseline(mapTop, titleFs2, 1.2), 'REGIONAL BRIEFS', {
+    family: SANS, size: titleFs2, weight: 700, fill: INK,
+  }));
+  const bodyTop = mapTop + titleFs2 * 1.2 + 3;
+  const bodyH = mapBottom - bodyTop;
+  parts.push(drawMap(M, bodyTop, mapW, bodyH, stories));
+
+  const colGap = 8;
+  const briefsW = inner - mapW - 8;
+  const colW = (briefsW - colGap * 2) / 3;
+  const groups = [['EUR'], ['MEA', 'AFR', 'SAS'], ['EAS', 'OCE', 'AME']];
+  const bFs = 8.5;
+  const bLh = 1.28;
+  const bGap = 2;
+  groups.forEach((regs, ci) => {
+    const x = briefsX + ci * (colW + colGap);
+    let by = bodyTop;
+    for (const r of regs) {
+      parts.push(el('rect', {
+        x: n(x), y: n(by + 2), width: 7, height: 7, fill: REGION_FILL[r], stroke: INK, 'stroke-width': 1,
+      }));
+      parts.push(txt(x + 11, baseline(by, bFs, bLh), REGION_NAME[r], {
+        family: SANS, size: bFs, weight: 700, fill: INK,
+      }));
+      by += bFs * bLh + bGap;
+      for (const s of briefs.filter((b) => b.region === r)) {
+        const line = `${s.id} ${s.line} ${s.tag} · ${s.source}`;
+        parts.push(txt(x, baseline(by, bFs, bLh), line, {
+          family: SANS, size: bFs, weight: 500, fill: INK,
+        }));
+        by += bFs * bLh + bGap;
+      }
+    }
+    if (by > mapBottom + 1) throw new Error(`briefs column ${ci} overflow ${by} > ${mapBottom}`);
+  });
+
+  y = mapBottom + 4;
+  parts.push(el('rect', { x: M, y: n(y), width: inner, height: n(dateH), fill: RED, stroke: 'none' }));
+  parts.push(txt(M + 8, baseline(y + 7, dateFs2, dateLh2), news.dateCheck, {
+    family: SANS, size: dateFs2, weight: 700, fill: WHITE,
+  }));
+  y += dateH + 3;
+  parts.push(txt(M, baseline(y, footFs, 1.3), news.footer, {
+    family: SANS, size: footFs, weight: 500, fill: INK,
+  }));
+  y += footH;
+  if (y > bottomLimit + 0.5) throw new Error(`plate overflow ${y}`);
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+${parts.join('\n')}
+</svg>`;
+}
+
+function drawMap(x, y, w, h, items) {
+  const lon0 = -180;
+  const lon1 = 180;
+  const lat0 = -58;
+  const lat1 = 78;
+  const project = (lon, lat) => [
+    x + ((lon - lon0) / (lon1 - lon0)) * w,
+    y + ((lat1 - lat) / (lat1 - lat0)) * h,
+  ];
+  const out = [];
+  out.push(el('rect', { x: n(x), y: n(y), width: n(w), height: n(h), fill: SKY, stroke: INK, 'stroke-width': 1.5 }));
+  for (const poly of polys) {
+    const d = poly.map((p, i) => {
+      const [px, py] = project(p[0], p[1]);
+      return `${i ? 'L' : 'M'}${n(px)},${n(py)}`;
+    }).join('') + 'Z';
+    out.push(el('path', { d, fill: CREAM, stroke: INK, 'stroke-width': 1, 'stroke-linejoin': 'round' }));
+  }
+  const [ex1] = project(lon0, 0);
+  const [, ey] = project(0, 0);
+  const [ex2] = project(lon1, 0);
+  out.push(el('path', { d: `M${n(ex1)} ${n(ey)} H${n(ex2)}`, stroke: MUST, 'stroke-width': 1, fill: 'none' }));
+
+  const pins = items.filter((s) => s.pin).map((s) => {
+    const [px, py] = project(s.pin[0], s.pin[1]);
+    return { id: s.id, x: px, y: py, lon: s.pin[0], lat: s.pin[1], region: s.region };
+  });
+  const parent = pins.map((_, i) => i);
+  const find = (a) => (parent[a] === a ? a : (parent[a] = find(parent[a])));
+  for (let i = 0; i < pins.length; i++) {
+    for (let j = i + 1; j < pins.length; j++) {
+      if (Math.hypot(pins[i].x - pins[j].x, pins[i].y - pins[j].y) < 9) parent[find(j)] = find(i);
     }
   }
-  return `<svg class="draw" viewBox="0 0 226 140" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect width="226" height="140" fill="#C5D7EA"/>
-    <path d="M0 46 H226 V78 H0 Z" fill="#243246"/>
-    <path d="M0 46 Q14 32 28 46 Q42 32 56 46 Q70 32 84 46 Q98 32 112 46 Q126 32 140 46 Q154 32 168 46 Q182 32 196 46 Q210 32 226 46 V58 H0 Z" fill="#31465F"/>
-    ${seats.join("")}
-    <ellipse cx="118" cy="112" rx="108" ry="34" fill="#2C6B40"/>
-    <ellipse cx="118" cy="114" rx="72" ry="18" fill="#3C8452"/>
-    <rect x="108" y="86" width="16" height="42" fill="#D9C29A"/>
-    <g stroke="#F7F1E4" stroke-width="1.1">
-      <line x1="111" y1="86" x2="111" y2="94"/><line x1="114.5" y1="86" x2="114.5" y2="94"/><line x1="118" y1="86" x2="118" y2="94"/>
-    </g>
-    <line x1="110" y1="86.5" x2="119" y2="86.5" stroke="#F7F1E4" stroke-width="1"/>
-    <circle cx="132" cy="96" r="4.2" fill="#E4C4A4"/>
-    <path d="M126 102 h12 v12 h-4 l-1 10 h-3 l-1-10 h-3 z" fill="#1E4C8A"/>
-    <rect x="136" y="78" width="5" height="26" rx="1" transform="rotate(18 138 90)" fill="#C6A15A"/>
-    <circle cx="164" cy="68" r="3.4" fill="#C4372F"/>
-    <path d="M150 74 q8 -10 16 -4" fill="none" stroke="#C4372F" stroke-width="1" opacity="0.7"/>
-    <rect x="156" y="8" width="62" height="30" rx="2" fill="#141E2A"/>
-    <text x="187" y="29" text-anchor="middle" font-family="Playfair Display, serif" font-size="18" fill="#F5F0E6">100</text>
-  </svg>`;
-}
+  const groups = new Map();
+  pins.forEach((p, i) => {
+    const f = find(i);
+    if (!groups.has(f)) groups.set(f, []);
+    groups.get(f).push(p);
+  });
 
-function arrest() {
-  return `<svg class="draw" viewBox="0 0 176 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect width="176" height="60" fill="#1A3048"/>
-    <rect y="40" width="176" height="20" fill="#3A4034"/>
-    <rect x="118" y="8" width="28" height="32" fill="#243044"/>
-    <rect x="122" y="12" width="8" height="6" fill="#E7D7A2"/>
-    <rect x="134" y="18" width="8" height="6" fill="#C9D7E4"/>
-    <line x1="28" y1="40" x2="28" y2="14" stroke="#C9B48A" stroke-width="2"/>
-    <circle cx="28" cy="12" r="5" fill="#F2C14B"/>
-    <circle cx="28" cy="12" r="10" fill="#F2C14B" opacity="0.25"/>
-    <circle cx="62" cy="28" r="5" fill="#E4C4A4"/>
-    <path d="M56 34 h12 v10 h-3 l-1 8 h-4 l-1-8 h-3 z" fill="#1E3A5F"/>
-    <path d="M54 40 h6" stroke="#1E3A5F" stroke-width="2"/>
-    <circle cx="92" cy="30" r="5" fill="#E4C4A4"/>
-    <path d="M86 36 h12 v9 h-12 z" fill="#6E4B32"/>
-    <path d="M84 42 h16" stroke="#6E4B32" stroke-width="2"/>
-    <circle cx="148" cy="22" r="7" fill="#8C3A2F"/>
-    <path d="M148 16 l1.4 4.2 h4.4 l-3.6 2.6 1.4 4.2 -3.6-2.6 -3.6 2.6 1.4-4.2 -3.6-2.6 h4.4 z" fill="#F5F0E6"/>
-  </svg>`;
-}
-
-function ship() {
-  return `<svg class="draw" viewBox="0 0 176 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect width="176" height="60" fill="#102433"/>
-    <path d="M0 40 Q30 34 60 40 T120 40 T176 40 V60 H0 Z" fill="#1A455C"/>
-    <path d="M0 48 Q40 44 80 50 T176 46 V60 H0 Z" fill="#16384A"/>
-    <path d="M38 40 L58 26 H124 L138 40 Z" fill="#6A5344"/>
-    <rect x="70" y="16" width="22" height="12" fill="#4E4038"/>
-    <rect x="92" y="12" width="6" height="16" fill="#2A2420"/>
-    <path d="M78 16 C70 6 74 2 80 0 C78 8 84 8 82 16 Z" fill="#E36A2C"/>
-    <path d="M96 14 C90 4 98 -2 104 2 C98 6 102 10 100 14 Z" fill="#F2C14B"/>
-    <circle cx="84" cy="6" r="5" fill="#D9D3CB" opacity="0.55"/>
-    <circle cx="98" cy="4" r="4" fill="#E7E2DA" opacity="0.4"/>
-  </svg>`;
-}
-
-function tennis() {
-  return `<svg class="draw" viewBox="0 0 176 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect width="176" height="60" fill="#245C38"/>
-    <rect x="28" y="8" width="120" height="44" fill="#2F6B40" stroke="#F4EFE4" stroke-width="1.2"/>
-    <line x1="88" y1="8" x2="88" y2="52" stroke="#F4EFE4" stroke-width="1.4"/>
-    <line x1="28" y1="30" x2="148" y2="30" stroke="#F4EFE4" stroke-width="0.8"/>
-    <line x1="88" y1="14" x2="88" y2="46" stroke="#F7F1E4" stroke-width="3"/>
-    <circle cx="112" cy="22" r="3.2" fill="#E7F27A"/>
-    <circle cx="58" cy="36" r="4" fill="#E4C4A4"/>
-    <path d="M54 40 h8 v8 h-8 z" fill="#1E4C8A"/>
-    <path d="M66 28 q10 6 6 16" fill="none" stroke="#F5F0E6" stroke-width="1.6"/>
-    <ellipse cx="74" cy="24" rx="5" ry="7" fill="none" stroke="#F5F0E6" stroke-width="1.4"/>
-  </svg>`;
-}
-
-function olympics() {
-  const rings = [
-    [58, 30, "#1D4E89"],
-    [70, 30, "#1A1A1A"],
-    [82, 30, "#C4372F"],
-    [64, 36, "#C9A227"],
-    [76, 36, "#2F6B40"],
-  ];
-  const ringSvg = rings
-    .map(([x, y, fill]) => `<circle cx="${x}" cy="${y}" r="6.5" fill="none" stroke="${fill}" stroke-width="1.6"/>`)
-    .join("");
-  return `<svg class="draw" viewBox="0 0 176 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect width="176" height="60" fill="#E7E1D4"/>
-    <path d="M8 50 Q88 18 168 50 V60 H8 Z" fill="#2C4A3A"/>
-    <path d="M28 50 Q88 30 148 50" fill="none" stroke="#F5F0E6" stroke-width="1" opacity="0.7"/>
-    ${ringSvg}
-    <text x="12" y="54" font-family="Playfair Display, serif" font-size="12" fill="#F7F3EA">1956</text>
-    <text x="124" y="54" font-family="Playfair Display, serif" font-size="12" fill="#F7F3EA">2026</text>
-  </svg>`;
-}
-
-function boat() {
-  return `<svg class="draw" viewBox="0 0 176 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect width="176" height="60" fill="#8FB4CE"/>
-    <path d="M0 34 Q22 28 44 34 T88 34 T132 34 T176 34 V60 H0 Z" fill="#3E7C9A"/>
-    <path d="M0 46 Q30 40 60 48 T130 44 T176 48 V60 H0 Z" fill="#2C6484"/>
-    <path d="M48 36 Q88 18 128 36 L118 42 Q88 28 58 42 Z" fill="#6E4B32"/>
-    <path d="M70 30 Q88 22 106 30" fill="none" stroke="#3A2A22" stroke-width="1"/>
-    <circle cx="40" cy="32" r="2.4" fill="#1C1915"/>
-    <path d="M38 34 q4 6 0 8" fill="none" stroke="#1C1915" stroke-width="1.2"/>
-  </svg>`;
-}
-
-function rugby() {
-  return `<svg class="draw" viewBox="0 0 176 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect width="176" height="60" fill="#2F6B40"/>
-    <path d="M0 46 Q40 40 80 48 T176 44 V60 H0 Z" fill="#245C34"/>
-    <g stroke="#F5F0E6" stroke-width="2" fill="none">
-      <path d="M40 44 V16"/><path d="M62 44 V16"/><path d="M40 16 H62"/>
-    </g>
-    <ellipse cx="118" cy="30" rx="16" ry="10" transform="rotate(-28 118 30)" fill="#F3EFE6" stroke="#1C1915" stroke-width="1.2"/>
-    <path d="M108 34 Q118 28 128 26" fill="none" stroke="#1C1915" stroke-width="0.8"/>
-  </svg>`;
-}
-
-function submarine() {
-  return `<svg class="draw" viewBox="0 0 176 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect width="176" height="60" fill="#14384C"/>
-    <path d="M0 18 Q40 14 80 18 T176 16" fill="none" stroke="#8FB4CE" stroke-width="1.2" opacity="0.7"/>
-    <ellipse cx="96" cy="36" rx="52" ry="12" fill="#5E6A72"/>
-    <rect x="78" y="20" width="22" height="10" rx="2" fill="#4C585F"/>
-    <rect x="86" y="12" width="3" height="10" fill="#3E484E"/>
-    <circle cx="70" cy="36" r="2" fill="#C5D5DE"/>
-    <circle cx="84" cy="36" r="2" fill="#C5D5DE"/>
-    <path d="M44 36 L36 42 H48 Z" fill="#3E484E"/>
-    <path d="M148 34 L156 40 H144 Z" fill="#3E484E"/>
-  </svg>`;
-}
-
-function hospital() {
-  return `<svg class="draw" viewBox="0 0 176 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect width="176" height="60" fill="#E7F0F2"/>
-    <rect x="18" y="28" width="86" height="16" rx="2" fill="#F7F4EE" stroke="#1C1915" stroke-width="1"/>
-    <rect x="14" y="40" width="96" height="6" fill="#C9D3D6"/>
-    <circle cx="40" cy="24" r="6" fill="#E4C4A4"/>
-    <path d="M30 30 h22 v8 H30 z" fill="#D7E4EA"/>
-    <rect x="118" y="10" width="42" height="28" rx="2" fill="#16384A"/>
-    <polyline points="124,28 132,28 136,16 142,32 148,22 154,24" fill="none" stroke="#7DCEA0" stroke-width="1.4"/>
-    <rect x="126" y="42" width="4" height="10" fill="#8AA0A6"/>
-  </svg>`;
-}
-
-function protest() {
-  return `<svg class="draw" viewBox="0 0 176 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect width="176" height="60" fill="#D5DDEA"/>
-    <rect y="44" width="176" height="16" fill="#C4B8A4"/>
-    <g fill="#1C1915">
-      <circle cx="46" cy="30" r="4.5"/>
-      <rect x="42" y="34" width="8" height="12"/>
-      <circle cx="88" cy="28" r="4.5"/>
-      <rect x="84" y="32" width="8" height="14"/>
-      <circle cx="128" cy="30" r="4.5"/>
-      <rect x="124" y="34" width="8" height="12"/>
-    </g>
-    <rect x="36" y="8" width="16" height="12" fill="#8C3A2F"/>
-    <rect x="78" y="6" width="16" height="12" fill="#1E3A5F"/>
-    <rect x="118" y="8" width="16" height="12" fill="#8A5A12"/>
-    <line x1="44" y1="20" x2="44" y2="32" stroke="#6E4B32" stroke-width="1.3"/>
-    <line x1="86" y1="18" x2="86" y2="30" stroke="#6E4B32" stroke-width="1.3"/>
-    <line x1="126" y1="20" x2="126" y2="32" stroke="#6E4B32" stroke-width="1.3"/>
-  </svg>`;
-}
-
-const DRAW = { cricket, arrest, ship, tennis, olympics, boat, rugby, submarine, hospital, protest };
-
-function photoPos(story) {
-  if (story.id === 1) return "center 40%";
-  if (story.id === 4) return "center 22%";
-  if (story.id === 6) return "center 42%";
-  return "center";
-}
-
-function leadCard(story) {
-  const chip = story.photo ? `<span class="chip">FILE PHOTO</span>` : "";
-  const picture = story.photo
-    ? `<img src="../${esc(story.photo)}" alt="${esc(story.credit)}" style="object-position:${photoPos(story)}">`
-    : cricket();
-  return `<article class="lead">
-    <div class="art">${picture}${chip}</div>
-    <p class="cred">${esc(story.credit)}</p>
-    <p class="kick" style="color:${COLOR[story.region]}">${esc(story.kicker)}</p>
-    <h2>${br(story.headline)}</h2>
-    <p class="deck">${br(story.deck)}</p>
-    <p class="src">${esc(story.source)} <span class="tag ${esc(story.certainty)}">${esc(story.certainty)}</span></p>
-  </article>`;
-}
-
-function midCard(story) {
-  const tag = `<span class="corner">${esc(story.certainty)}</span>`;
-  const banner = story.photo
-    ? `<div class="banner"><img src="../${esc(story.photo)}" alt="${esc(story.credit)}" style="object-position:${photoPos(story)}"><span class="chip">FILE PHOTO</span><span class="credline">${esc(story.credit)}</span>${tag}</div>`
-    : `<div class="banner">${DRAW[story.art]()}${tag}</div>`;
-  return `<article class="mid">${banner}<h3>${esc(story.headline)}</h3><p>${esc(story.deck)}</p></article>`;
-}
-
-const MW = 330;
-const MH = 165;
-
-function project(lon, lat) {
-  return [((lon + 180) / 360) * MW, ((90 - lat) / 180) * MH];
-}
-
-const LAND = [
-  [[-168, 71], [-166, 64], [-158, 58], [-153, 59], [-140, 69], [-128, 71], [-105, 72], [-94, 72], [-88, 76], [-80, 74], [-70, 68], [-64, 60], [-56, 53], [-56, 48], [-62, 47], [-70, 43], [-74, 40], [-76, 35], [-81, 32], [-82, 25], [-90, 29], [-94, 30], [-98, 26], [-97, 22], [-106, 22], [-110, 24], [-114, 28], [-117, 32], [-122, 34], [-124, 40], [-125, 49], [-130, 54], [-136, 58], [-152, 59], [-158, 61], [-166, 66], [-168, 71]],
-  [[-68, 76], [-60, 75], [-52, 70], [-44, 68], [-42, 73], [-28, 73], [-22, 76], [-20, 81], [-40, 83], [-55, 82], [-68, 78]],
-  [[-78, 8], [-70, 12], [-62, 10], [-52, 5], [-48, 0], [-36, -5], [-35, -8], [-38, -15], [-40, -22], [-48, -28], [-52, -32], [-62, -38], [-68, -46], [-74, -52], [-72, -46], [-74, -20], [-76, -14], [-78, -4], [-80, 0], [-78, 8]],
-  [[-17, 15], [-16, 21], [-10, 32], [-6, 35], [-2, 35], [10, 37], [20, 32], [25, 32], [32, 31], [34, 28], [43, 12], [51, 12], [45, 2], [42, -1], [40, -15], [35, -20], [32, -26], [28, -34], [19, -35], [18, -32], [12, -18], [13, -6], [10, 2], [9, 4], [4, 5], [-5, 5], [-10, 6], [-15, 10], [-17, 14]],
-  [[43, -12], [50, -16], [48, -25], [44, -25], [43, -16]],
-  [[-10, 36], [-9, 43], [-8, 52], [-5, 58], [-2, 58], [2, 62], [5, 62], [8, 58], [6, 52], [2, 51], [0, 50], [-2, 48], [-1, 44], [3, 43], [8, 44], [12, 42], [16, 39], [20, 40], [26, 41], [28, 41], [36, 42], [40, 41], [50, 40], [54, 37], [60, 37], [68, 28], [72, 25], [78, 20], [80, 15], [77, 8], [80, 6], [98, 8], [104, 2], [109, -1], [114, -3], [119, 0], [122, 6], [120, 12], [122, 18], [122, 24], [120, 30], [122, 32], [128, 34], [132, 32], [140, 36], [145, 44], [142, 50], [138, 54], [132, 54], [128, 50], [120, 54], [115, 58], [112, 64], [104, 70], [90, 72], [70, 70], [60, 68], [44, 68], [30, 70], [20, 70], [12, 66], [14, 60], [20, 55], [26, 56], [28, 50], [24, 46], [20, 44], [16, 40], [12, 46], [8, 56], [5, 52], [2, 50], [-5, 48], [-9, 43], [-10, 36]],
-  [[5, 58], [8, 63], [12, 66], [16, 69], [20, 70], [26, 71], [28, 70], [24, 64], [20, 60], [14, 58], [10, 58], [5, 62]],
-  [[68, 24], [70, 20], [74, 14], [77, 8], [80, 10], [85, 16], [89, 22], [92, 24], [88, 26], [78, 25], [72, 25]],
-  [[-8, 50], [-6, 58], [-2, 59], [2, 52], [-1, 50], [-5, 50]],
-  [[8, 44], [10, 43], [12, 41], [15, 38], [16, 40], [13, 42], [12, 45], [9, 44]],
-  [[130, 31], [134, 33], [138, 35], [141, 33], [140, 37], [141, 41], [145, 43], [142, 46], [139, 41], [137, 36], [132, 33]],
-  [[113, -22], [122, -18], [128, -14], [136, -12], [142, -11], [146, -15], [150, -24], [153, -28], [150, -37], [146, -39], [140, -38], [136, -35], [128, -33], [124, -33], [116, -35], [114, -32], [113, -26]],
-  [[146, -41], [148, -43], [147, -44], [145, -42]],
-  [[166, -41], [168, -46], [170, -47], [172, -45], [174, -41], [172, -39], [169, -36], [166, -38], [166, -41]],
-  [[174, -37], [176, -41], [178, -38], [176, -35], [174, -37]],
-];
-
-function mapSvg() {
-  const land = LAND.map((ring) => {
-    const d = ring.map(([lon, lat], i) => {
-      const [x, y] = project(lon, lat);
-      return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
-    }).join(" ") + " Z";
-    return `<path d="${d}" fill="#E4D3B0"/>`;
-  }).join("");
-  const pins = data.stories.filter((story) => Number.isFinite(story.lat) && Number.isFinite(story.lon)).map((story) => {
-    const [x, y] = project(story.lon, story.lat);
-    const radius = story.tier === "lead" ? 3 : story.tier === "mid" ? 2.4 : 1.7;
-    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${radius}" fill="${COLOR[story.region]}" stroke="#F7F3EA" stroke-width="0.6"/>`;
-  }).join("");
-  const labels = [
-    [124, 30, "EUROPE"],
-    [124, 40, "6–8 · 11"],
-    [206, 40, "1 · 4"],
-    [230, 70, "3"],
-    [48, 64, "5"],
-    [40, 46, "41"],
-    [94, 36, "39"],
-    [146, 104, "13"],
-    [150, 78, "10"],
-    [270, 124, "9 · 12"],
-    [300, 112, "2"],
-    [316, 42, "33"],
-    [248, 90, "31"],
-  ];
-  const labelSvg = labels.map(([x, y, text]) =>
-    `<text x="${x}" y="${y}" text-anchor="middle" font-family="Source Sans Pro, Inter, sans-serif" font-size="8" fill="#1C1915" stroke="#F4EFE6" stroke-width="2" paint-order="stroke">${esc(text)}</text>`
-  ).join("");
-  return `<svg class="map" viewBox="0 0 ${MW} ${MH}" width="330" height="198" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="World map with story pins">
-    <rect width="${MW}" height="${MH}" fill="#8FB4CE"/>
-    ${land}${pins}${labelSvg}
-  </svg>`;
-}
-
-function briefColumns() {
-  const byRegion = {};
-  for (const story of data.stories) {
-    if (story.tier !== "brief") continue;
-    (byRegion[story.region] ??= []).push(story);
+  for (const p of pins) {
+    const fill = p.region === 'AME' ? INK : REGION_FILL[p.region];
+    out.push(el('circle', { cx: n(p.x), cy: n(p.y), r: 4.2, fill: CREAM, stroke: 'none' }));
+    out.push(el('circle', { cx: n(p.x), cy: n(p.y), r: 3.1, fill, stroke: INK, 'stroke-width': 1 }));
   }
-  return data.briefColumns.map((column) => {
-    const blocks = column.map((code) => {
-      const lines = (byRegion[code] ?? []).map((story) =>
-        `<p class="br">${esc(story.brief)} <span class="tag ${esc(story.certainty)}">${esc(story.certainty)}</span></p>`
-      ).join("");
-      return `<h3 class="rh" style="color:${COLOR[code]}">${esc(data.regionNames[code])}</h3>${lines}`;
-    }).join("");
-    return `<div class="bcol">${blocks}</div>`;
-  }).join("");
+
+  const obstacles = pins.map((p) => ({ x: p.x - 4, y: p.y - 4, w: 8, h: 8 }));
+  const bounds = { x, y, w, h };
+  function overlap(a, b, m = 1) {
+    return a.x < b.x + b.w + m && a.x + a.w + m > b.x && a.y < b.y + b.h + m && a.y + a.h + m > b.y;
+  }
+  function wrapIds(ids) {
+    const sorted = [...ids].sort((a, b) => a - b);
+    const tokens = [];
+    let i = 0;
+    while (i < sorted.length) {
+      let j = i;
+      while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j += 1;
+      tokens.push(j >= i + 2 ? `${sorted[i]}–${sorted[j]}` : sorted.slice(i, j + 1).join('·'));
+      i = j + 1;
+    }
+    const lines = [];
+    let cur = '';
+    for (const t of tokens) {
+      const next = cur ? `${cur}·${t}` : t;
+      if (next.length > 11 && cur) {
+        lines.push(cur);
+        cur = t;
+      } else cur = next;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  for (const group of groups.values()) {
+    const ids = group.map((p) => p.id);
+    const lines = wrapIds(ids);
+    const fs = 7.5;
+    const lh = fs * 1.25;
+    const bw = Math.max(...lines.map((l) => l.length * 4.15)) + 6;
+    const bh = lines.length * lh + 3;
+    const cx = group.reduce((a, p) => a + p.x, 0) / group.length;
+    const cy = group.reduce((a, p) => a + p.y, 0) / group.length;
+    const lon = group.reduce((a, p) => a + p.lon, 0) / group.length;
+    const lat = group.reduce((a, p) => a + p.lat, 0) / group.length;
+    let prefer = null;
+    if (group.length >= 5 && lon < 45 && lat > 28) prefer = project(-40, 50);
+    else if (group.length >= 4 && lat < -25 && lon > 120 && lon < 165) prefer = project(145, -50);
+    else if (lon > 165 && lat < -30) prefer = project(162, -36);
+    const dirs = [[-1, -0.2], [1, -0.2], [0, -1], [0, 1], [-1, 0.6], [1, 0.7], [-0.4, -1.2], [1.2, -0.8]];
+    let box = null;
+    const seeds = prefer ? [[prefer[0] - bw / 2, prefer[1] - bh / 2]] : [];
+    for (const dist of [14, 26, 40, 58]) {
+      for (const [dx, dy] of dirs) seeds.push([cx + dx * dist - bw / 2, cy + dy * dist - bh / 2]);
+    }
+    for (const [lx, ly] of seeds) {
+      const trial = { x: lx, y: ly, w: bw, h: bh };
+      if (trial.x < bounds.x + 1 || trial.y < bounds.y + 1) continue;
+      if (trial.x + trial.w > bounds.x + bounds.w - 1 || trial.y + trial.h > bounds.y + bounds.h - 1) continue;
+      if (obstacles.some((o) => overlap(o, trial, 1))) continue;
+      box = trial;
+      break;
+    }
+    if (!box) {
+      box = {
+        x: Math.min(Math.max(cx + 6, bounds.x + 1), bounds.x + bounds.w - bw - 1),
+        y: Math.min(Math.max(cy - bh - 4, bounds.y + 1), bounds.y + bounds.h - bh - 1),
+        w: bw, h: bh,
+      };
+    }
+    obstacles.push(box);
+    out.push(el('rect', {
+      x: n(box.x), y: n(box.y), width: n(box.w), height: n(box.h),
+      fill: CREAM, stroke: INK, 'stroke-width': 1,
+    }));
+    const near = Math.hypot(cx - (box.x + box.w / 2), cy - (box.y + box.h / 2)) < 16;
+    if (!near) {
+      out.push(el('path', {
+        d: `M${n(cx)} ${n(cy)} L${n(box.x + box.w / 2)} ${n(box.y + box.h / 2)}`,
+        stroke: INK, 'stroke-width': 0.8, fill: 'none',
+      }));
+    }
+    lines.forEach((line, li) => {
+      out.push(txt(box.x + 3, box.y + 2 + baseline(0, fs, 1.25, li), line, {
+        family: SANS, size: fs, weight: 700, fill: INK,
+      }));
+    });
+  }
+  return out.join('');
 }
 
-const leads = data.stories.filter((story) => story.tier === "lead").map(leadCard).join("");
-const mids = data.stories.filter((story) => story.tier === "mid").map(midCard).join("");
-const bar = data.regionOrder.map((code) =>
-  `<div class="seg" style="background:${COLOR[code]}">${code} ${counts[code]}</div>`
-).join("");
-const ticks = data.zones.map((zone) =>
-  `<div class="tick"><p class="when">${esc(zone.place)} ${esc(zone.time)}</p><p class="what">${esc(zone.label)}</p></div>`
-).join("");
-const dateCheck = esc(data.dateCheck).replace("DATE CHECK", "<strong>DATE CHECK</strong>");
-
+const svg = buildSvg();
 const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>${esc(data.edition)}</title>
+<meta charset="utf-8"/>
+<title>The Sunday Globe — 22 November 2026</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: 1024px; height: 1024px; background: #F5F0E6; }
-  body {
-    padding: 16px;
-    display: grid;
-    grid-template-rows: 14px 76px 17px 58px 22px 270px 240px 254px 29px 12px;
-    color: #1C1915;
-    font-family: "Source Sans Pro", Inter, sans-serif;
-  }
-  .kicker {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: end;
-    font-size: 11px;
-    line-height: 1.2;
-    letter-spacing: 0.06em;
-    font-weight: 700;
-  }
-  .kicker .right { text-align: right; }
-  h1.date {
-    font-family: "Playfair Display", Georgia, serif;
-    font-size: 66px;
-    line-height: 1.15;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    white-space: nowrap;
-  }
-  .edition-deck {
-    font-family: "Source Serif Pro", Georgia, serif;
-    font-size: 13px;
-    line-height: 1.3;
-    color: #3A342C;
-  }
-  .zones { height: 58px; padding: 8px 0; text-align: center; }
-  .zones .zt {
-    font-size: 11px;
-    line-height: 1.2;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-  }
-  .ticks { display: grid; grid-template-columns: repeat(6, 1fr); }
-  .tick { text-align: center; }
-  .tick .when { font-size: 11px; line-height: 1.15; font-weight: 700; }
-  .tick .what { font-size: 10px; line-height: 1.3; color: #4E493F; }
-  .bar { display: grid; grid-template-columns: repeat(8, 1fr); height: 22px; }
-  .seg {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 0 6px;
-    color: #F5F0E6;
-    font-size: 11px;
-    line-height: 1.2;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-  }
-  .leads { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; height: 270px; }
-  .lead {
-    height: 270px;
-    padding: 8px;
-    background: #FBF7EF;
-    outline: 1px solid #E4D9C6;
-    outline-offset: -1px;
-  }
-  .art { position: relative; height: 140px; overflow: hidden; background: #D9D0C2; }
-  .art img, .art svg { width: 100%; height: 140px; display: block; object-fit: cover; }
-  .chip, .corner {
-    position: absolute;
-    top: 4px;
-    background: #F5F0E6;
-    font-size: 8px;
-    line-height: 1.2;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    padding: 1px 3px;
-  }
-  .chip { left: 4px; }
-  .corner { right: 4px; }
-  .cred { margin-top: 8px; font-size: 8px; line-height: 1.3; color: #5C564C; }
-  .kick { font-size: 10px; line-height: 1.15; font-weight: 700; letter-spacing: 0.04em; }
-  .lead h2 {
-    font-family: "Playfair Display", Georgia, serif;
-    font-size: 17px;
-    line-height: 1.15;
-    font-weight: 500;
-  }
-  .lead .deck {
-    margin-top: 4px;
-    font-family: "Source Serif Pro", Georgia, serif;
-    font-size: 11px;
-    line-height: 1.3;
-    color: #3A342C;
-  }
-  .src { font-size: 9px; line-height: 1.3; color: #4E493F; }
-  .tag { font-weight: 700; letter-spacing: 0.03em; margin-left: 4px; }
-  .tag.OFFICIAL, .tag.OFF { color: #1F6B3A; }
-  .tag.CONFIRMED, .tag.CONF { color: #1D4E89; }
-  .tag.REPORTED, .tag.REP { color: #8A5A12; }
-  .tag.CLAIM { color: #8E1B2C; }
-  .mids { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: 116px 116px; gap: 8px; height: 240px; }
-  .mid {
-    height: 116px;
-    padding: 8px;
-    background: #FBF7EF;
-    outline: 1px solid #E4D9C6;
-    outline-offset: -1px;
-  }
-  .banner { position: relative; height: 60px; overflow: hidden; background: #E7E0D2; }
-  .banner img, .banner svg { width: 100%; height: 60px; display: block; object-fit: cover; }
-  .credline {
-    position: absolute;
-    left: 0; right: 0; bottom: 0;
-    background: #F5F0E6;
-    font-size: 8px;
-    line-height: 1.2;
-    letter-spacing: -0.03em;
-    padding: 0 2px;
-    white-space: nowrap;
-    color: #3A342C;
-  }
-  .mid h3 {
-    margin-top: 8px;
-    font-family: "Source Serif Pro", Georgia, serif;
-    font-size: 12px;
-    line-height: 1.2;
-    font-weight: 600;
-  }
-  .mid p {
-    margin-top: 3px;
-    font-family: "Source Sans Pro", Inter, sans-serif;
-    font-size: 10px;
-    line-height: 1.32;
-    color: #3A342C;
-  }
-  .bottom {
-    height: 254px;
-    padding: 8px 0;
-    display: grid;
-    grid-template-columns: 330px 1fr;
-    column-gap: 10px;
-  }
-  .mapwrap { height: 100%; display: flex; align-items: center; }
-  .map { display: block; width: 330px; height: 198px; }
-  .briefs { display: grid; grid-template-columns: 1fr 1fr 1fr; column-gap: 8px; }
-  .rh { font-size: 10px; line-height: 1.15; font-weight: 700; letter-spacing: 0.04em; margin: 0 0 2px; text-align: left; }
-  .bcol .rh:not(:first-child) { margin-top: 2px; }
-  .br { font-size: 10px; line-height: 1.3; margin: 0 0 2px; text-align: left; }
-  .datecheck {
-    height: 29px;
-    padding: 8px;
-    background: #8E1B2C;
-    color: #F5F0E6;
-    font-size: 10px;
-    line-height: 1.3;
-  }
-  .datecheck strong { font-weight: 700; letter-spacing: 0.04em; }
-  .foot {
-    height: 12px;
-    font-size: 8px;
-    line-height: 1.3;
-    color: #5C564C;
-    display: flex;
-    align-items: center;
-  }
+  html, body { margin: 0; padding: 0; width: 1024px; height: 1024px; overflow: hidden; background: ${PAPER}; }
+  svg { display: block; width: 1024px; height: 1024px; }
 </style>
 </head>
 <body>
-  <header class="kicker"><span>${esc(data.kickerLeft)}</span><span class="right">${esc(data.kickerRight)}</span></header>
-  <h1 class="date">${esc(data.edition)}</h1>
-  <p class="edition-deck">${esc(data.deck)}</p>
-  <section class="zones">
-    <p class="zt">${esc(data.zonesTitle)} · ${esc(data.zonesNote)}</p>
-    <div class="ticks">${ticks}</div>
-  </section>
-  <div class="bar">${bar}</div>
-  <section class="leads">${leads}</section>
-  <section class="mids">${mids}</section>
-  <section class="bottom">
-    <div class="mapwrap">${mapSvg()}</div>
-    <div class="briefs">${briefColumns()}</div>
-  </section>
-  <p class="datecheck">${dateCheck}</p>
-  <p class="foot">${esc(data.footer)}</p>
+${svg.replace(/^<\?xml[^>]*>\s*/, '')}
 </body>
 </html>
 `;
+const htmlPath = join(root, 'poster.html');
+const rawPath = join(root, 'entry.raw.png');
+const pngPath = join(root, 'entry.png');
+const previewPath = join(root, 'preview.png');
+writeFileSync(htmlPath, html);
 
-const htmlPath = join(here, "poster.html");
-const shotPath = join(here, "raw-shot.png");
-await writeFile(htmlPath, html);
+const chrome = spawnSync('google-chrome', [
+  '--headless=new',
+  '--disable-gpu',
+  '--no-sandbox',
+  '--hide-scrollbars',
+  '--force-device-scale-factor=1',
+  '--disable-extensions',
+  '--no-first-run',
+  '--default-background-color=FFF6F0E4',
+  `--window-size=1024,1024`,
+  `--screenshot=${rawPath}`,
+  pathToFileURL(htmlPath).href,
+], { stdio: 'inherit', timeout: 60000 });
+if (chrome.status !== 0) process.exit(chrome.status ?? 1);
 
-const chrome = spawnSync("google-chrome", [
-  "--headless=new",
-  "--no-sandbox",
-  "--disable-gpu",
-  "--hide-scrollbars",
-  "--force-device-scale-factor=1",
-  "--allow-file-access-from-files",
-  "--window-size=1024,1024",
-  `--screenshot=${shotPath}`,
-  `file://${htmlPath}`,
-], { stdio: "inherit" });
-
-if (chrome.status !== 0) {
-  process.exit(chrome.status ?? 1);
-}
-
-const entryPath = join(root, "entry.png");
-const previewPath = join(here, "preview-300.png");
-const py = spawnSync("python3", ["-"], {
-  input: `
+const py = spawnSync('python3', ['-c', `
 from PIL import Image
-from pathlib import Path
-src, entry, preview = ${JSON.stringify(shotPath)}, ${JSON.stringify(entryPath)}, ${JSON.stringify(previewPath)}
-im = Image.open(src).convert("RGB")
+import os
+raw, png, preview = ${JSON.stringify(rawPath)}, ${JSON.stringify(pngPath)}, ${JSON.stringify(previewPath)}
+im = Image.open(raw)
+if im.mode == 'RGBA':
+    bg = Image.new('RGB', im.size, (246, 240, 228))
+    bg.paste(im, mask=im.split()[-1])
+    im = bg
+else:
+    im = im.convert('RGB')
 if im.size != (1024, 1024):
-    if im.width >= 1024 and im.height >= 1024:
-        im = im.crop((0, 0, 1024, 1024))
-    else:
-        canvas = Image.new("RGB", (1024, 1024), (245, 240, 230))
-        canvas.paste(im, (0, 0))
-        im = canvas
-im.save(entry, "PNG", optimize=True)
-size = Path(entry).stat().st_size
-if size > 1048576:
-    reduced = im.quantize(colors=128, method=Image.Quantize.MEDIANCUT).convert("RGB")
-    reduced.save(entry, "PNG", optimize=True)
-    size = Path(entry).stat().st_size
-preview_im = im.resize((300, 300), Image.Resampling.LANCZOS)
-preview_im.save(preview, "PNG", optimize=True)
-print(f"{im.size[0]}x{im.size[1]} {size}")
-`,
-  encoding: "utf8",
-});
+    raise SystemExit(f'bad size {im.size} {im.mode}')
+im.save(png, 'PNG', optimize=True)
+im.resize((300, 300), Image.Resampling.LANCZOS).save(preview, 'PNG', optimize=True)
+print(f'{png} {os.path.getsize(png)} bytes RGB {im.size[0]}x{im.size[1]}')
+print('Layout: 48-story cartoon Sunday Globe, 16px margin, 4 lead cards, 10 mids, briefs beside a lon/lat map.')
+`], { encoding: 'utf8' });
 if (py.status !== 0) {
   console.error(py.stderr);
   process.exit(py.status ?? 1);
 }
-await unlink(shotPath).catch(() => {});
-console.log(py.stdout.trim());
-console.log(entryPath);
+process.stdout.write(py.stdout);
+unlinkSync(rawPath);
