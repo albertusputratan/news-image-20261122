@@ -35,16 +35,28 @@ const REGION_INK = {
 const TAG_FILL = {
   CONFIRMED: TEAL, REPORTED: SKY, OFFICIAL: INK, CLAIM: MUST, FORECAST: CORAL,
 };
+const TAG3 = {
+  CONFIRMED: 'CNF', REPORTED: 'REP', OFFICIAL: 'OFF', CLAIM: 'CLM', FORECAST: 'FCT',
+};
+const PLACE = { 1: 'ANTALYA', 2: 'KYIV REGION', 3: 'WELLINGTON', 4: 'LAS VEGAS' };
 
 const stories = [...news.stories].sort((a, b) => a.id - b.id);
-if (stories.length < 45 || stories.length > 49) {
-  throw new Error(`story count ${stories.length}`);
-}
+if (stories.length !== 49) throw new Error(`story count ${stories.length}`);
+stories.forEach((s, i) => { if (s.id !== i + 1) throw new Error(`id gap ${s.id}`); });
 const leads = stories.filter((s) => s.tier === 'lead');
 const mids = stories.filter((s) => s.tier === 'mid');
 const briefs = stories.filter((s) => s.tier === 'brief');
-if (leads.length !== 4 || mids.length !== 10) {
-  throw new Error('expected 4 leads and 10 mids');
+if (leads.length !== 4 || mids.length !== 10 || briefs.length !== 35) {
+  throw new Error('expected 4 leads, 10 mids, 35 briefs');
+}
+for (const s of briefs) {
+  if ([...s.line].length > 36) throw new Error(`brief ${s.id} is ${[...s.line].length} chars`);
+}
+const jokeIds = new Set([2, 5, 7, 9, 12, 13, 15, 25, 28, 30, 32, 34, 35, 43, 48]);
+const scoops = stories.filter((s) => s.scoop);
+if (scoops.length > 6) throw new Error(`scoop bubbles ${scoops.length}`);
+for (const s of scoops) {
+  if (jokeIds.has(s.id)) throw new Error(`scoop on a straight story ${s.id}`);
 }
 
 const counts = Object.fromEntries(REGIONS.map((r) => [r, 0]));
@@ -80,48 +92,53 @@ function shape(tag, attrs) {
     ...attrs,
   });
 }
+function textWidth(str, fs) {
+  let w = 0;
+  for (const ch of str) {
+    if (ch === ' ') w += 0.33;
+    else if ('·.,:;\'-–'.includes(ch)) w += 0.38;
+    else if (ch >= '0' && ch <= '9') w += 0.62;
+    else if (ch === ch.toUpperCase() && ch !== ch.toLowerCase()) w += 0.72;
+    else w += 0.56;
+  }
+  return w * fs;
+}
 
 function scoop(cx, cy, s) {
   const r = 8 * s;
   const brim = cy - r * 0.72;
-  const out = [];
-  out.push(shape('path', {
-    d: `M${n(cx - r * 1.2)} ${n(brim)} L${n(cx - r * 0.72)} ${n(brim - r * 0.78)} H${n(cx + r * 0.72)} L${n(cx + r * 1.2)} ${n(brim)} Z`,
-    fill: CREAM,
-  }));
-  out.push(el('rect', {
-    x: n(cx - r * 0.5), y: n(brim - r * 0.62), width: n(r), height: n(r * 0.26),
-    fill: RED, stroke: 'none',
-  }));
-  out.push(shape('circle', { cx: n(cx), cy: n(cy), r: n(r), fill: SKY }));
-  out.push(shape('ellipse', { cx: n(cx), cy: n(cy), rx: n(r * 0.4), ry: n(r), fill: 'none', 'stroke-width': 1.5 }));
-  out.push(shape('path', { d: `M${n(cx - r)} ${n(cy)} H${n(cx + r)}`, fill: 'none', 'stroke-width': 1.5 }));
-  out.push(el('circle', { cx: n(cx - r * 0.32), cy: n(cy - r * 0.06), r: n(1.15 * s), fill: INK, stroke: 'none' }));
-  out.push(el('circle', { cx: n(cx + r * 0.34), cy: n(cy - r * 0.06), r: n(1.15 * s), fill: INK, stroke: 'none' }));
-  out.push(shape('path', {
-    d: `M${n(cx - r * 0.62)} ${n(cy - r * 0.32)} Q${n(cx - r * 0.32)} ${n(cy - r * 0.7)} ${n(cx - r * 0.02)} ${n(cy - r * 0.3)}`,
-    fill: 'none',
-  }));
-  out.push(shape('path', {
-    d: `M${n(cx + r * 0.1)} ${n(cy - r * 0.4)} H${n(cx + r * 0.62)}`,
-    fill: 'none',
-  }));
-  out.push(shape('path', {
-    d: `M${n(cx - r * 0.26)} ${n(cy + r * 0.36)} Q${n(cx)} ${n(cy + r * 0.58)} ${n(cx + r * 0.26)} ${n(cy + r * 0.36)}`,
-    fill: 'none', 'stroke-width': 1.5,
-  }));
-  return out.join('');
-}
-
-function bubble(x, y, w, h, label) {
   return [
-    shape('rect', { x: n(x), y: n(y), width: n(w), height: n(h), rx: 2, fill: CREAM }),
     shape('path', {
-      d: `M${n(x + 10)} ${n(y + h - 1)} L${n(x + 6)} ${n(y + h + 6)} L${n(x + 22)} ${n(y + h - 1)}`,
+      d: `M${n(cx - r * 1.2)} ${n(brim)} L${n(cx - r * 0.72)} ${n(brim - r * 0.78)} H${n(cx + r * 0.72)} L${n(cx + r * 1.2)} ${n(brim)} Z`,
       fill: CREAM,
     }),
-    el('rect', { x: n(x + 8), y: n(y + h - 3), width: 16, height: 5, fill: CREAM, stroke: 'none' }),
-    txt(x + w / 2, y + h * 0.72, label, { family: SANS, size: 8, weight: 700, fill: INK, anchor: 'middle' }),
+    el('rect', {
+      x: n(cx - r * 0.5), y: n(brim - r * 0.62), width: n(r), height: n(r * 0.26),
+      fill: RED, stroke: 'none',
+    }),
+    shape('circle', { cx: n(cx), cy: n(cy), r: n(r), fill: SKY }),
+    shape('ellipse', { cx: n(cx), cy: n(cy), rx: n(r * 0.4), ry: n(r), fill: 'none', 'stroke-width': 1.5 }),
+    shape('path', { d: `M${n(cx - r)} ${n(cy)} H${n(cx + r)}`, fill: 'none', 'stroke-width': 1.5 }),
+    el('circle', { cx: n(cx - r * 0.32), cy: n(cy - r * 0.06), r: n(1.15 * s), fill: INK, stroke: 'none' }),
+    el('circle', { cx: n(cx + r * 0.34), cy: n(cy - r * 0.06), r: n(1.15 * s), fill: INK, stroke: 'none' }),
+    shape('path', {
+      d: `M${n(cx - r * 0.62)} ${n(cy - r * 0.32)} Q${n(cx - r * 0.32)} ${n(cy - r * 0.7)} ${n(cx - r * 0.02)} ${n(cy - r * 0.3)}`,
+      fill: 'none',
+    }),
+    shape('path', { d: `M${n(cx + r * 0.1)} ${n(cy - r * 0.4)} H${n(cx + r * 0.62)}`, fill: 'none' }),
+    shape('path', {
+      d: `M${n(cx - r * 0.26)} ${n(cy + r * 0.36)} Q${n(cx)} ${n(cy + r * 0.58)} ${n(cx + r * 0.26)} ${n(cy + r * 0.36)}`,
+      fill: 'none', 'stroke-width': 1.5,
+    }),
+  ].join('');
+}
+
+function bubble(x, y, w, h, label, fs) {
+  return [
+    shape('rect', { x: n(x), y: n(y), width: n(w), height: n(h), rx: 2, fill: CREAM }),
+    txt(x + w / 2, baseline(y + 1, fs, (h - 2) / fs), label, {
+      family: SANS, size: fs, weight: 700, fill: INK, anchor: 'middle',
+    }),
   ].join('');
 }
 
@@ -129,221 +146,335 @@ function frame(w, h) {
   return shape('rect', { x: 1, y: 1, width: n(w - 2), height: n(h - 2), fill: 'none' });
 }
 
-function artCop(w, h) {
+function scene(w, h, dw, dh, bg, body) {
+  const s = Math.min(w / dw, h / dh);
+  const ox = (w - dw * s) / 2;
+  const oy = (h - dh * s) / 2;
   return [
-    el('rect', { width: w, height: h, fill: SKY, stroke: 'none' }),
-    el('rect', { y: n(h * 0.7), width: w, height: n(h * 0.3), fill: MUST, stroke: 'none' }),
-    shape('circle', { cx: 30, cy: 26, r: 13, fill: MUST }),
-    shape('rect', { x: 82, y: 36, width: 70, height: 42, fill: CREAM }),
-    shape('rect', { x: 108, y: 58, width: 16, height: 20, fill: TEAL }),
-    el('rect', { x: 90, y: 42, width: 54, height: 12, fill: RED, stroke: 'none' }),
-    txt(117, 51.5, 'COP31', { family: SANS, size: 8, weight: 700, fill: WHITE, anchor: 'middle' }),
-    shape('circle', { cx: 188, cy: 32, r: 16, fill: CREAM }),
-    shape('path', { d: 'M188 32 V20 M188 32 L198 36', fill: 'none' }),
-    el('circle', { cx: 188, cy: 32, r: 1.6, fill: INK, stroke: 'none' }),
-    [0, 1, 2].map((i) => shape('circle', { cx: 150 + i * 16, cy: 92, r: 6, fill: i === 1 ? CORAL : TEAL })).join(''),
-    scoop(40, 86, 0.9),
-    bubble(46, 6, 82, 16, 'No gavel yet.'),
+    el('rect', { width: n(w), height: n(h), fill: bg, stroke: 'none' }),
+    `<g transform="translate(${n(ox)},${n(oy)}) scale(${n(s)})">${body}</g>`,
     frame(w, h),
   ].join('');
 }
 
-function artBahrain(w, h) {
-  return [
-    el('rect', { width: w, height: h, fill: CREAM, stroke: 'none' }),
-    el('rect', { y: 72, width: w, height: n(h - 72), fill: TEAL, stroke: 'none' }),
-    shape('path', { d: 'M18 28 H46 M24 22 H40', fill: 'none' }),
-    shape('path', { d: 'M32 22 V40', fill: 'none' }),
-    shape('circle', { cx: 32, cy: 18, r: 4, fill: SKY }),
-    [70, 112, 154].map((cx, i) => shape('ellipse', {
-      cx, cy: 62, rx: 18, ry: 14, fill: i === 1 ? CORAL : CREAM,
-    })).join(''),
-    shape('path', { d: 'M104 48 L112 28 L120 48 Z', fill: RED }),
-    shape('path', { d: 'M108 40 L114 22 L118 36', fill: MUST, 'stroke-width': 1.5 }),
-    shape('path', { d: 'M40 48 Q90 20 150 36', fill: 'none', stroke: CORAL }),
-    shape('path', { d: 'M48 58 Q100 28 168 46', fill: 'none', stroke: SKY }),
-    frame(w, h),
-  ].join('');
+function remark(line, x, y, w, h, fs, face) {
+  if (!line) return '';
+  return scoop(face[0], face[1], face[2]) + bubble(x, y, w, h, line, fs);
 }
 
-function artSparta(w, h) {
+function artCop(w, h, line) {
+  const body = [
+    el('rect', { width: 225, height: 96, fill: SKY, stroke: 'none' }),
+    el('rect', { y: 96, width: 225, height: 44, fill: MUST, stroke: 'none' }),
+    shape('rect', { x: 16, y: 34, width: 193, height: 78, fill: CREAM }),
+    el('rect', { x: 72, y: 42, width: 80, height: 16, fill: RED, stroke: 'none' }),
+    txt(112, 54, 'COP31', { family: SANS, size: 11, weight: 700, fill: WHITE, anchor: 'middle' }),
+    shape('rect', { x: 90, y: 64, width: 44, height: 30, fill: PAPER }),
+    shape('path', { d: 'M90 64 H134 M90 64 V112 M134 64 V112 M86 104 H138', fill: 'none' }),
+    shape('rect', { x: 86, y: 104, width: 52, height: 8, fill: TEAL }),
+    shape('rect', { x: 150, y: 96, width: 10, height: 14, fill: INK }),
+    shape('rect', { x: 158, y: 100, width: 30, height: 5, fill: MUST }),
+    shape('circle', { cx: 186, cy: 52, r: 11, fill: CREAM }),
+    shape('path', { d: 'M186 52 V44 M186 52 L193 56', fill: 'none', 'stroke-width': 1.5 }),
+    shape('rect', { x: 28, y: 108, width: 150, height: 10, fill: TEAL }),
+    [46, 68, 168].map((cx) => shape('circle', { cx, cy: 112, r: 6, fill: cx === 168 ? CORAL : TEAL })).join(''),
+    remark(line, 32, 6, 140, 18, 9, [16, 16, 0.62]),
+  ].join('');
+  return scene(w, h, 225, 140, SKY, body);
+}
+
+function artKyiv(w, h) {
+  const wins = [];
+  for (let r = 0; r < 5; r++) {
+    for (let c = 0; c < 4; c++) {
+      const lit = (r * 3 + c) % 2 === 0;
+      wins.push(el('rect', {
+        x: 74 + c * 20, y: 36 + r * 15, width: 12, height: 9,
+        fill: lit ? MUST : INK, stroke: 'none',
+      }));
+    }
+  }
+  const body = [
+    el('rect', { width: 225, height: 140, fill: INK, stroke: 'none' }),
+    el('polygon', {
+      points: '28,126 62,18 46,126', fill: MUST, opacity: 0.45, stroke: 'none',
+    }),
+    el('polygon', {
+      points: '186,126 158,16 204,126', fill: CREAM, opacity: 0.28, stroke: 'none',
+    }),
+    el('rect', { y: 114, width: 225, height: 26, fill: TEAL, stroke: 'none' }),
+    shape('rect', { x: 64, y: 28, width: 98, height: 90, fill: CREAM }),
+    el('rect', { x: 58, y: 22, width: 110, height: 8, fill: INK, stroke: INK, 'stroke-width': 2 }),
+    wins.join(''),
+    drone(22, 16, 1.15), drone(168, 14, 1.25), drone(202, 34, 1),
+  ].join('');
+  return scene(w, h, 225, 140, INK, body);
+}
+
+function drone(x, y, s = 1) {
   return [
-    el('rect', { width: w, height: h, fill: TEAL, stroke: 'none' }),
-    shape('path', { d: `M0 78 Q28 70 56 78 T112 78 T168 78 T224 78`, fill: 'none', stroke: CREAM, 'stroke-width': 2 }),
-    shape('path', { d: `M0 92 Q30 84 60 92 T120 92 T180 92 T226 92`, fill: 'none', stroke: SKY, 'stroke-width': 2 }),
-    shape('path', { d: 'M48 70 L70 48 H150 L176 70 Z', fill: INK }),
-    shape('rect', { x: 86, y: 34, width: 36, height: 18, fill: CREAM }),
-    shape('path', { d: 'M118 34 V22', fill: 'none' }),
-    shape('path', { d: 'M128 46 L140 24 L148 46 Z', fill: RED }),
-    shape('circle', { cx: 156, cy: 28, r: 8, fill: CREAM }),
-    shape('circle', { cx: 170, cy: 18, r: 6, fill: PAPER, 'stroke-width': 1.5 }),
-    frame(w, h),
+    shape('path', { d: `M${n(x - 16 * s)} ${n(y)} H${n(x + 16 * s)}`, stroke: CREAM, fill: 'none' }),
+    shape('ellipse', {
+      cx: n(x), cy: n(y + 2 * s), rx: n(7 * s), ry: n(3.2 * s), fill: INK, stroke: CREAM, 'stroke-width': 1.5,
+    }),
+    shape('circle', { cx: n(x - 14 * s), cy: n(y), r: n(4 * s), fill: 'none', stroke: CREAM, 'stroke-width': 1.5 }),
+    shape('circle', { cx: n(x + 14 * s), cy: n(y), r: n(4 * s), fill: 'none', stroke: CREAM, 'stroke-width': 1.5 }),
   ].join('');
 }
 
 function artPant(w, h) {
-  return [
-    el('rect', { width: w, height: 48, fill: SKY, stroke: 'none' }),
-    el('rect', { y: 48, width: w, height: n(h - 48), fill: TEAL, stroke: 'none' }),
-    shape('rect', { x: 70, y: 58, width: 70, height: 40, fill: CREAM }),
-    shape('path', { d: 'M100 58 V98 M78 78 H132', fill: 'none', 'stroke-width': 1.5 }),
-    shape('path', { d: 'M96 96 V86 M104 96 V86 M100 86 V80', fill: 'none' }),
-    shape('circle', { cx: 124, cy: 70, r: 7, fill: MUST }),
-    shape('path', { d: 'M124 77 V96 M116 84 H132 M118 96 H130', fill: 'none' }),
-    shape('path', { d: 'M128 72 L158 40 L164 48 L134 78 Z', fill: MUST }),
-    el('circle', { cx: 150, cy: 36, r: 5, fill: RED, stroke: INK, 'stroke-width': 2 }),
-    shape('rect', { x: 168, y: 14, width: 46, height: 22, fill: CREAM }),
-    txt(191, 30, '128', { family: PLAY, size: 14, weight: 700, fill: INK, anchor: 'middle' }),
-    scoop(36, 78, 0.85),
-    bubble(52, 6, 86, 16, 'Look surprised.'),
-    frame(w, h),
+  const body = [
+    el('rect', { width: 225, height: 88, fill: SKY, stroke: 'none' }),
+    el('rect', { y: 88, width: 225, height: 52, fill: TEAL, stroke: 'none' }),
+    el('rect', { x: 8, y: 8, width: 74, height: 42, fill: CREAM, stroke: INK, 'stroke-width': 2 }),
+    txt(45, 38, '720', { family: PLAY, size: 24, weight: 700, fill: INK, anchor: 'middle' }),
+    el('rect', { x: 78, y: 88, width: 50, height: 52, fill: CREAM, stroke: 'none' }),
+    shape('path', { d: 'M86 96 V128 M94 96 V128 M102 96 V128 M84 96 H104', fill: 'none' }),
+    shape('circle', { cx: 132, cy: 84, r: 9, fill: MUST }),
+    shape('path', { d: 'M124 82 H140', fill: 'none', 'stroke-width': 1.5 }),
+    shape('path', {
+      d: 'M132 93 V118 M120 104 H144 M124 118 L118 134 M140 118 L150 134',
+      fill: 'none',
+    }),
+    shape('path', { d: 'M140 100 L176 48 L184 54 L148 106 Z', fill: MUST }),
+    shape('circle', { cx: 196, cy: 36, r: 7, fill: RED }),
+    shape('path', { d: 'M0 96 Q40 88 80 96 T160 96 T225 96', fill: 'none', stroke: CREAM, 'stroke-width': 1.5 }),
   ].join('');
+  return scene(w, h, 225, 140, SKY, body);
+}
+
+function f1(x, y, len, fill) {
+  const wr = 10;
+  const rear = x + 14;
+  const front = x + len - 26;
+  return [
+    shape('rect', { x: n(x), y: n(y - 30), width: 5, height: 22, fill }),
+    shape('rect', { x: n(x), y: n(y - 30), width: 13, height: 3.5, fill }),
+    shape('rect', { x: n(x + 1), y: n(y - 22), width: 11, height: 3, fill }),
+    shape('path', {
+      d: `M${n(x + 12)} ${n(y - 3)} L${n(x + 20)} ${n(y - 13)} L${n(x + 32)} ${n(y - 15)} L${n(x + 40)} ${n(y - 6)} L${n(x + len - 12)} ${n(y - 4)} L${n(x + len - 2)} ${n(y - 1)} L${n(x + 14)} ${n(y - 1)} Z`,
+      fill,
+    }),
+    shape('path', {
+      d: `M${n(x + 22)} ${n(y - 13)} L${n(x + 36)} ${n(y - 6)} L${n(x + 26)} ${n(y - 5)} Z`,
+      fill: INK,
+    }),
+    el('circle', { cx: n(x + 29), cy: n(y - 14), r: 5, fill: CREAM, stroke: INK, 'stroke-width': 1.5 }),
+    el('path', { d: `M${n(x + 27)} ${n(y - 14)} H${n(x + 33)}`, fill: 'none', stroke: INK, 'stroke-width': 1 }),
+    shape('rect', { x: n(x + len - 11), y: n(y - 2), width: 11, height: 4, fill }),
+    el('circle', { cx: n(rear), cy: n(y), r: wr, fill: INK, stroke: CREAM, 'stroke-width': 2 }),
+    el('circle', { cx: n(front), cy: n(y), r: wr, fill: INK, stroke: CREAM, 'stroke-width': 2 }),
+    el('circle', { cx: n(rear), cy: n(y), r: 3.6, fill: CREAM, stroke: 'none' }),
+    el('circle', { cx: n(front), cy: n(y), r: 3.6, fill: CREAM, stroke: 'none' }),
+  ].join('');
+}
+
+function artVegas(w, h, line) {
+  const towers = [
+    [4, 14, 20, CORAL], [22, 10, 12, MUST], [36, 16, 22, TEAL], [56, 12, 14, SKY],
+    [72, 18, 18, CORAL], [94, 12, 16, MUST], [110, 16, 22, TEAL], [130, 10, 12, RED],
+    [144, 16, 18, CORAL], [164, 12, 14, MUST], [180, 14, 20, SKY], [198, 12, 12, CORAL],
+    [212, 10, 10, MUST],
+  ];
+  const body = [
+    el('rect', { width: 225, height: 140, fill: INK, stroke: 'none' }),
+    towers.map(([tx, tw, th, fill]) => el('rect', {
+      x: tx, y: 78 - th, width: tw, height: th, fill, stroke: 'none',
+    })).join(''),
+    el('rect', { y: 100, width: 225, height: 30, fill: PAPER, opacity: 0.14, stroke: 'none' }),
+    [0, 1, 2, 3, 4, 5, 6, 7].map((i) => el('rect', {
+      x: 8 + i * 28, y: 120, width: 12, height: 3, fill: CREAM, stroke: 'none',
+    })).join(''),
+    [12, 40, 68, 96, 124, 152, 180, 208].map((px) => el('rect', {
+      x: px, y: 58, width: 3, height: 18, fill: CREAM, stroke: 'none',
+    })).join(''),
+    el('rect', { y: 60, width: 225, height: 4, fill: TEAL, stroke: 'none' }),
+    el('rect', { y: 66, width: 225, height: 4, fill: CORAL, stroke: 'none' }),
+    el('rect', { y: 72, width: 225, height: 4, fill: MUST, stroke: 'none' }),
+    f1(7, 112, 64, MUST),
+    f1(81, 112, 64, TEAL),
+    f1(155, 112, 64, RED),
+    el('rect', { y: 130, width: 225, height: 4, fill: TEAL, stroke: 'none' }),
+    el('rect', { y: 136, width: 225, height: 4, fill: CORAL, stroke: 'none' }),
+    shape('rect', { x: 36, y: 28, width: 154, height: 18, fill: CREAM }),
+    txt(113, baseline(28, 11, 18 / 11), '35 lead changes', {
+      family: SANS, size: 11, weight: 700, fill: INK, anchor: 'middle',
+    }),
+    remark(line, 36, 6, 122, 18, 9, [18, 16, 0.58]),
+  ].join('');
+  return scene(w, h, 225, 140, INK, body);
+}
+
+function artBahrain(w, h) {
+  const body = [
+    el('rect', { width: 180, height: 36, fill: CREAM, stroke: 'none' }),
+    el('rect', { y: 36, width: 180, height: 24, fill: TEAL, stroke: 'none' }),
+    shape('rect', { x: 22, y: 18, width: 52, height: 26, fill: INK }),
+    shape('rect', { x: 30, y: 6, width: 8, height: 14, fill: INK }),
+    shape('path', { d: 'M28 10 L34 0 L40 10 Z', fill: RED }),
+    shape('path', { d: 'M31 8 L34 2 L37 8 Z', fill: MUST, 'stroke-width': 1 }),
+    el('rect', { x: 30, y: 24, width: 8, height: 6, fill: MUST, stroke: 'none' }),
+    el('rect', { x: 44, y: 24, width: 8, height: 6, fill: PAPER, stroke: 'none' }),
+    el('rect', { x: 58, y: 24, width: 8, height: 6, fill: MUST, stroke: 'none' }),
+  ].join('');
+  return scene(w, h, 180, 60, CREAM, body);
 }
 
 function artHk(w, h) {
-  const barW = w - 70;
-  return [
-    el('rect', { width: w, height: h, fill: CREAM, stroke: 'none' }),
-    shape('rect', { x: 8, y: 8, width: 36, height: 38, fill: RED }),
-    el('rect', { x: 20, y: 8, width: 12, height: 8, fill: CREAM, stroke: 'none' }),
-    shape('rect', { x: 56, y: 22, width: barW, height: 12, fill: PAPER }),
-    el('rect', { x: 56, y: 22, width: n(barW * 0.45), height: 12, fill: MUST, stroke: 'none' }),
-    txt(58, 16, '45% first hour', { family: SANS, size: 9, weight: 700, fill: INK }),
-    frame(w, h),
+  const body = [
+    el('rect', { width: 180, height: 60, fill: CREAM, stroke: 'none' }),
+    shape('rect', { x: 48, y: 16, width: 46, height: 34, fill: RED }),
+    el('rect', { x: 58, y: 10, width: 26, height: 8, fill: CREAM, stroke: INK, 'stroke-width': 2 }),
+    shape('rect', { x: 66, y: 2, width: 12, height: 12, fill: PAPER }),
+    shape('circle', { cx: 122, cy: 32, r: 12, fill: TEAL }),
+    shape('path', { d: 'M116 32 L120 36 L130 26', fill: 'none', stroke: WHITE, 'stroke-width': 2 }),
   ].join('');
+  return scene(w, h, 180, 60, CREAM, body);
 }
 
 function artMexico(w, h) {
-  const fig = (x, fill) => [
-    shape('circle', { cx: x, cy: 16, r: 6, fill }),
-    shape('rect', { x: x - 7, y: 24, width: 14, height: 18, fill }),
-  ].join('');
-  return [
-    el('rect', { width: w, height: h, fill: MUST, stroke: 'none' }),
-    fig(36, TEAL), fig(62, CORAL), fig(88, TEAL),
-    shape('rect', { x: 112, y: 14, width: 52, height: 22, fill: RED }),
-    txt(138, 29, 'HELD', { family: SANS, size: 11, weight: 700, fill: WHITE, anchor: 'middle' }),
-    frame(w, h),
-  ].join('');
-}
-
-function artNato(w, h) {
-  return [
-    el('rect', { width: w, height: h, fill: CREAM, stroke: 'none' }),
+  const body = [
+    el('rect', { width: 180, height: 60, fill: MUST, stroke: 'none' }),
+    shape('circle', { cx: 42, cy: 30, r: 16, fill: CREAM }),
     shape('path', {
-      d: 'M28 8 L52 8 L60 28 L40 48 L20 28 Z',
-      fill: TEAL,
+      d: 'M42 16 L46 26 H56 L48 32 L51 42 L42 36 L33 42 L36 32 L28 26 H38 Z',
+      fill: RED,
     }),
-    shape('path', { d: 'M40 16 V36 M30 26 H50', fill: 'none', stroke: WHITE, 'stroke-width': 2 }),
-    scoop(148, 34, 0.7),
-    bubble(78, 4, 64, 14, 'Every inch.'),
-    frame(w, h),
+    shape('circle', { cx: 108, cy: 32, r: 9, fill: 'none' }),
+    shape('circle', { cx: 132, cy: 32, r: 9, fill: 'none' }),
+    shape('path', { d: 'M117 32 H123', fill: 'none' }),
   ].join('');
+  return scene(w, h, 180, 60, MUST, body);
 }
 
-function artTalks(w, h) {
+function person(x, y, fill) {
   return [
-    el('rect', { width: w, height: h, fill: PAPER, stroke: 'none' }),
-    shape('rect', { x: 16, y: 18, width: 28, height: 26, fill: TEAL }),
-    shape('rect', { x: 16, y: 10, width: 8, height: 20, fill: TEAL }),
-    shape('rect', { x: 132, y: 18, width: 28, height: 26, fill: CORAL }),
-    shape('rect', { x: 152, y: 10, width: 8, height: 20, fill: CORAL }),
-    shape('rect', { x: 52, y: 28, width: 72, height: 8, fill: MUST }),
-    shape('path', { d: 'M78 8 H96 L92 20 H74 Z', fill: SKY }),
-    shape('path', { d: 'M100 8 H112 L120 20 H104 Z', fill: CREAM }),
-    frame(w, h),
-  ].join('');
-}
-
-function artPower(w, h) {
-  return [
-    el('rect', { width: w, height: h, fill: PAPER, stroke: 'none' }),
-    shape('rect', { x: 8, y: 22, width: 22, height: 28, fill: INK }),
-    shape('rect', { x: 34, y: 10, width: 26, height: 40, fill: INK }),
-    shape('rect', { x: 64, y: 18, width: 20, height: 32, fill: INK }),
-    el('rect', { x: 14, y: 28, width: 6, height: 6, fill: MUST, stroke: 'none' }),
-    el('rect', { x: 40, y: 16, width: 6, height: 6, fill: PAPER, stroke: 'none' }),
-    el('rect', { x: 50, y: 28, width: 6, height: 6, fill: MUST, stroke: 'none' }),
-    shape('circle', { cx: 130, cy: 24, r: 14, fill: CREAM }),
-    el('path', { d: 'M116 24 H144', stroke: 'none', fill: 'none' }),
-    el('rect', { x: 116, y: 24, width: 28, height: 14, fill: PAPER, stroke: 'none' }),
-    shape('rect', { x: 124, y: 36, width: 12, height: 6, fill: INK }),
-    frame(w, h),
-  ].join('');
-}
-
-function artIcu(w, h) {
-  return [
-    el('rect', { width: w, height: h, fill: CREAM, stroke: 'none' }),
-    shape('rect', { x: 8, y: 28, width: 78, height: 16, fill: PAPER }),
-    shape('path', { d: 'M8 28 V22 H86 V28', fill: 'none' }),
-    shape('rect', { x: 100, y: 8, width: 64, height: 28, fill: INK }),
+    shape('circle', { cx: n(x), cy: n(y), r: 6, fill }),
     shape('path', {
-      d: 'M106 22 H118 L124 12 L132 30 L140 18 H158',
-      fill: 'none', stroke: TEAL, 'stroke-width': 2,
+      d: `M${n(x)} ${n(y + 6)} V${n(y + 20)} M${n(x - 8)} ${n(y + 12)} H${n(x + 8)} M${n(x)} ${n(y + 20)} L${n(x - 6)} ${n(y + 32)} M${n(x)} ${n(y + 20)} L${n(x + 6)} ${n(y + 32)}`,
+      fill: 'none',
     }),
-    shape('rect', { x: 78, y: 8, width: 14, height: 14, fill: TEAL }),
-    el('path', { d: 'M85 10 V20 M80 15 H90', stroke: WHITE, 'stroke-width': 2, fill: 'none' }),
-    frame(w, h),
   ].join('');
 }
 
-function artTennis(w, h) {
-  return [
-    el('rect', { width: w, height: h, fill: TEAL, stroke: 'none' }),
-    shape('rect', { x: 8, y: 8, width: 100, height: 38, fill: CREAM }),
-    shape('path', { d: 'M58 8 V46 M8 27 H108', fill: 'none', 'stroke-width': 1.5 }),
-    shape('circle', { cx: 28, cy: 20, r: 5, fill: CORAL }),
-    shape('circle', { cx: 86, cy: 34, r: 5, fill: SKY }),
-    shape('path', { d: 'M124 40 L132 12 H148 L156 40 Z', fill: MUST }),
-    shape('rect', { x: 130, y: 8, width: 20, height: 6, fill: RED }),
-    scoop(168, 36, 0.62),
-    bubble(112, 2, 62, 13, 'Still boxed.'),
-    frame(w, h),
+function artDelhi(w, h, line) {
+  const body = [
+    el('rect', { width: 180, height: 60, fill: CREAM, stroke: 'none' }),
+    shape('rect', { x: 28, y: 28, width: 14, height: 10, fill: MUST }),
+    el('rect', { x: 28, y: 33, width: 14, height: 3, fill: TEAL, stroke: 'none' }),
+    shape('rect', { x: 118, y: 28, width: 14, height: 10, fill: RED }),
+    person(48, 30, TEAL),
+    person(112, 30, CORAL),
+    shape('path', { d: 'M56 42 H104', fill: 'none', 'stroke-width': 2 }),
+    remark(line, 28, 2, 116, 14, 8, [14, 10, 0.46]),
   ].join('');
+  return scene(w, h, 180, 60, CREAM, body);
 }
 
-function artMcg(w, h) {
-  return [
-    el('rect', { width: w, height: h, fill: SKY, stroke: 'none' }),
-    shape('path', { d: `M16 ${h - 8} Q${w / 2} 10 ${w - 16} ${h - 8}`, fill: CREAM }),
-    txt(48, 36, '70', { family: PLAY, size: 26, weight: 700, fill: RED }),
-    shape('path', { d: 'M120 34 C120 18 148 18 148 34', fill: 'none' }),
-    shape('path', { d: 'M128 34 V46 H140 V34', fill: 'none' }),
-    el('path', { d: 'M134 22 L138 14 L142 22 Z', fill: MUST, stroke: INK, 'stroke-width': 2 }),
-    frame(w, h),
+function artEisenkot(w, h) {
+  const body = [
+    el('rect', { width: 180, height: 60, fill: PAPER, stroke: 'none' }),
+    shape('path', { d: 'M8 47 H172', fill: 'none', 'stroke-width': 1.5 }),
+    shape('path', { d: 'M14 47 V30 H26 L44 16 L62 30 H76 V47', fill: 'none' }),
+    shape('path', { d: 'M34 47 V38 H46 V47', fill: 'none', 'stroke-width': 1.5 }),
+    shape('rect', { x: 52, y: 34, width: 12, height: 8, fill: 'none', 'stroke-width': 1.5 }),
+    shape('path', {
+      d: 'M96 47 L102 41 H112 L118 34 L124 30 L130 35 L136 28 L144 34 H154 L162 40 H170 L174 47 Z',
+      fill: INK,
+    }),
+    shape('rect', { x: 126, y: 36, width: 12, height: 6, fill: PAPER, 'stroke-width': 1 }),
+    shape('circle', { cx: 114, cy: 47, r: 6, fill: PAPER }),
+    shape('circle', { cx: 156, cy: 47, r: 6, fill: PAPER }),
+    shape('path', {
+      d: 'M124 29 C122 23 128 21 126 15 M136 27 C140 21 134 19 138 13',
+      fill: 'none', 'stroke-width': 1.5,
+    }),
   ].join('');
+  return scene(w, h, 180, 60, PAPER, body);
 }
 
-function artAukus(w, h) {
-  return [
-    el('rect', { width: w, height: h, fill: CREAM, stroke: 'none' }),
-    shape('ellipse', { cx: 70, cy: 32, rx: 52, ry: 14, fill: TEAL }),
-    shape('rect', { x: 78, y: 12, width: 16, height: 14, fill: TEAL }),
-    shape('path', { d: 'M20 26 L8 20 V44 L20 38 Z', fill: TEAL }),
-    shape('rect', { x: 128, y: 10, width: 36, height: 30, fill: PAPER }),
-    shape('path', { d: 'M134 16 L158 34 M158 16 L134 34', fill: 'none', stroke: RED, 'stroke-width': 2 }),
-    frame(w, h),
+function artOyo(w, h) {
+  const body = [
+    el('rect', { width: 180, height: 60, fill: CREAM, stroke: 'none' }),
+    shape('ellipse', { cx: 96, cy: 40, rx: 36, ry: 12, fill: TEAL }),
+    shape('circle', { cx: 64, cy: 28, r: 7, fill: CORAL }),
+    shape('circle', { cx: 96, cy: 22, r: 7, fill: MUST }),
+    shape('circle', { cx: 128, cy: 28, r: 7, fill: SKY }),
+    shape('path', { d: 'M96 8 C96 8 88 18 88 22 A8 8 0 1 0 104 22 C104 18 96 8 96 8 Z', fill: RED }),
+    el('circle', { cx: 96, cy: 22, r: 2.2, fill: CREAM, stroke: 'none' }),
   ].join('');
+  return scene(w, h, 180, 60, CREAM, body);
 }
 
-function artBoat(w, h) {
-  return [
-    el('rect', { width: w, height: h, fill: SKY, stroke: 'none' }),
-    el('rect', { y: 28, width: w, height: n(h - 28), fill: TEAL, stroke: 'none' }),
-    shape('path', { d: 'M36 30 L48 44 H120 L132 30 Z', fill: MUST }),
-    shape('path', { d: 'M70 30 V14 H98 V30', fill: 'none' }),
-    shape('circle', { cx: 150, cy: 24, r: 10, fill: CREAM }),
-    shape('circle', { cx: 150, cy: 24, r: 4, fill: 'none' }),
-    frame(w, h),
+function artWemby(w, h, line) {
+  const body = [
+    el('rect', { width: 180, height: 60, fill: TEAL, stroke: 'none' }),
+    el('rect', { y: 40, width: 180, height: 20, fill: MUST, stroke: 'none' }),
+    shape('rect', { x: 118, y: 16, width: 8, height: 28, fill: INK }),
+    shape('rect', { x: 100, y: 18, width: 26, height: 18, fill: CREAM }),
+    txt(113, 32, '50', { family: PLAY, size: 13, weight: 700, fill: RED, anchor: 'middle' }),
+    shape('ellipse', { cx: 104, cy: 38, rx: 10, ry: 3, fill: 'none', stroke: RED }),
+    shape('path', { d: 'M96 38 V46 M112 38 V46', fill: 'none', 'stroke-width': 1 }),
+    shape('circle', { cx: 62, cy: 30, r: 9, fill: CORAL }),
+    shape('path', { d: 'M56 30 H68 M62 24 V36', fill: 'none', stroke: INK, 'stroke-width': 1 }),
+    remark(line, 22, 2, 92, 14, 8, [12, 10, 0.42]),
   ].join('');
+  return scene(w, h, 180, 60, TEAL, body);
+}
+
+function artFire(w, h) {
+  const body = [
+    el('rect', { width: 180, height: 60, fill: INK, stroke: 'none' }),
+    el('rect', { y: 44, width: 180, height: 16, fill: TEAL, stroke: 'none' }),
+    shape('rect', { x: 18, y: 28, width: 96, height: 20, fill: CREAM }),
+    shape('rect', { x: 28, y: 20, width: 10, height: 10, fill: INK }),
+    shape('path', { d: 'M36 30 L48 8 L58 28 Z', fill: RED }),
+    shape('path', { d: 'M52 32 L66 4 L78 30 Z', fill: MUST }),
+    shape('path', { d: 'M74 30 L86 12 L96 30 Z', fill: RED }),
+    el('rect', { x: 36, y: 34, width: 8, height: 6, fill: SKY, stroke: 'none' }),
+    el('rect', { x: 52, y: 34, width: 8, height: 6, fill: SKY, stroke: 'none' }),
+    el('rect', { x: 68, y: 34, width: 8, height: 6, fill: SKY, stroke: 'none' }),
+  ].join('');
+  return scene(w, h, 180, 60, INK, body);
+}
+
+function artGaza(w, h) {
+  const body = [
+    el('rect', { width: 180, height: 60, fill: CREAM, stroke: 'none' }),
+    shape('path', { d: 'M10 48 H170', fill: 'none', 'stroke-width': 1.5 }),
+    shape('rect', { x: 16, y: 28, width: 32, height: 20, fill: 'none' }),
+    shape('rect', { x: 54, y: 16, width: 36, height: 32, fill: 'none' }),
+    shape('rect', { x: 96, y: 22, width: 28, height: 26, fill: 'none' }),
+    shape('rect', { x: 130, y: 30, width: 34, height: 18, fill: 'none' }),
+    shape('path', {
+      d: 'M24 34 H30 M24 40 H30 M36 34 H42 M36 40 H42 M64 24 H72 M64 32 H72 M80 24 H88 M80 32 H88 M104 30 H112 M104 38 H112 M116 30 H120 M138 36 H146 M154 36 H160',
+      fill: 'none', 'stroke-width': 1.5,
+    }),
+  ].join('');
+  return scene(w, h, 180, 60, CREAM, body);
+}
+
+function artTennis(w, h, line) {
+  const body = [
+    el('rect', { width: 180, height: 60, fill: TEAL, stroke: 'none' }),
+    shape('rect', { x: 8, y: 20, width: 86, height: 32, fill: CREAM }),
+    shape('path', { d: 'M51 20 V52 M8 36 H94', fill: 'none', 'stroke-width': 1.5 }),
+    shape('rect', { x: 118, y: 22, width: 18, height: 26, fill: MUST }),
+    shape('rect', { x: 116, y: 18, width: 22, height: 6, fill: INK }),
+    remark(line, 22, 2, 90, 14, 8, [12, 10, 0.42]),
+  ].join('');
+  return scene(w, h, 180, 60, TEAL, body);
 }
 
 const ART = {
-  cop31: artCop, bahrain: artBahrain, sparta: artSparta, pant: artPant,
-  hk: artHk, mexico: artMexico, nato: artNato, talks: artTalks, power: artPower,
-  icu: artIcu, tennis: artTennis, mcg: artMcg, aukus: artAukus, boat: artBoat,
+  cop31: artCop, kyiv: artKyiv, pant: artPant, vegas: artVegas,
+  bahrain: artBahrain, hk: artHk, mexico: artMexico, delhi: artDelhi,
+  eisenkot: artEisenkot, oyo: artOyo, wemby: artWemby, fire: artFire,
+  gaza: artGaza, tennis: artTennis,
 };
+for (const s of [...leads, ...mids]) {
+  if (!ART[s.art]) throw new Error(`no art for ${s.id}`);
+}
 
 function pip(poly, x, y) {
   let inside = false;
@@ -358,11 +489,27 @@ const polys = Object.values(land);
 function onLand(lon, lat) {
   return polys.some((p) => pip(p, lon, lat));
 }
+function nearestLand(lon, lat) {
+  let best = null;
+  for (let y = lat - 10; y <= lat + 10; y += 0.2) {
+    for (let x = lon - 10; x <= lon + 10; x += 0.2) {
+      const px = Math.round(x * 10) / 10;
+      const py = Math.round(y * 10) / 10;
+      if (!onLand(px, py)) continue;
+      const d = (px - lon) ** 2 + (py - lat) ** 2;
+      if (!best || d < best.d) best = { d, x: px, y: py };
+    }
+  }
+  return best && [best.x, best.y];
+}
 for (const s of stories) {
   if (!s.pin) continue;
   const hit = onLand(s.pin[0], s.pin[1]);
   if (s.water && hit) throw new Error(`sea pin ${s.id} sits on land`);
-  if (!s.water && !hit) throw new Error(`land pin ${s.id} is off the map shapes`);
+  if (!s.water && !hit && s.tier !== 'brief') {
+    s._snap = nearestLand(s.pin[0], s.pin[1]);
+    if (!s._snap) throw new Error(`land pin ${s.id} is off the map shapes`);
+  }
 }
 
 function segmentWidths(total) {
@@ -370,83 +517,66 @@ function segmentWidths(total) {
   const raw = REGIONS.map((r) => (total * counts[r]) / sum);
   const widths = raw.map((v) => Math.floor(v));
   let left = total - widths.reduce((a, b) => a + b, 0);
-  const order = raw.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0]);
+  const order = raw.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
   for (let k = 0; k < left; k++) widths[order[k][1]] += 1;
   return widths;
 }
 
+function tagInk(tag) {
+  return tag === 'OFFICIAL' || tag === 'CONFIRMED' ? WHITE : INK;
+}
+
+function chip(x, y, tag) {
+  const label = TAG3[tag];
+  return [
+    shape('rect', { x: n(x), y: n(y), width: 28, height: 13, rx: 1, fill: TAG_FILL[tag], 'stroke-width': 1 }),
+    txt(x + 14, baseline(y, 8, 13 / 8), label, {
+      family: SANS, size: 8, weight: 700, fill: tagInk(tag), anchor: 'middle',
+    }),
+  ].join('');
+}
+
 function buildSvg() {
   const W = 1024;
-  const M = 16;
+  const M = 14;
   const inner = W - M * 2;
   const parts = [];
   parts.push(el('rect', { width: W, height: W, fill: PAPER, stroke: 'none' }));
 
   let y = M;
   const kickerFs = 13;
-  const kickerBase = baseline(y, kickerFs, 1.2);
+  const kickerLh = 1.25;
+  const kickerBase = baseline(y, kickerFs, kickerLh);
   parts.push(txt(M, kickerBase, news.masthead, { family: SANS, size: kickerFs, weight: 700, fill: RED }));
-  parts.push(txt(M + 158, kickerBase, `${stories.length} STORIES · 7 REGIONS · SUNDAY 22 NOVEMBER 2026`, {
-    family: SANS, size: 11, weight: 600, fill: INK,
+  parts.push(txt(M + inner, kickerBase, `${stories.length} STORIES · 7 REGIONS · SUNDAY 22 NOVEMBER 2026`, {
+    family: SANS, size: 11, weight: 600, fill: INK, anchor: 'end',
   }));
-  y += 16 + 1;
+  y += kickerFs * kickerLh + 2;
 
-  const dateFs = 40;
-  const dateLh = 1.16;
+  const dateFs = 72;
+  const dateLh = 1.1;
   parts.push(txt(M, baseline(y, dateFs, dateLh), news.date, {
     family: PLAY, size: dateFs, weight: 700, fill: INK,
   }));
   y += dateFs * dateLh + 2;
 
-  const standFs = 12.5;
+  const standFs = 13;
   const standLh = 1.3;
   parts.push(txt(M, baseline(y, standFs, standLh), news.standfirst, {
     family: SERIF, size: standFs, weight: 400, fill: INK,
   }));
   y += standFs * standLh + 3;
 
-  const scoopH = 26;
+  const scoopH = 24;
   parts.push(shape('rect', { x: M, y: n(y), width: inner, height: scoopH, fill: CREAM, 'stroke-width': 1.5 }));
-  parts.push(scoop(M + 18, y + 15, 0.72));
-  parts.push(txt(M + 36, y + 17, `Scoop · ${news.scoopLine}`, {
-    family: SERIF, size: 12, weight: 400, fill: INK,
+  parts.push(scoop(M + 16, y + 14, 0.7));
+  parts.push(txt(M + 34, baseline(y, 12.5, scoopH / 12.5), `Scoop · ${news.scoopLine}`, {
+    family: SERIF, size: 12.5, weight: 400, fill: INK,
   }));
   y += scoopH + 4;
 
-  const kpiH = 40;
-  const kpiGap = 6;
-  const kpiW = Math.floor((inner - kpiGap * 5) / 6);
-  const labelFs = 8;
-  const labelLh = 1.2;
-  const valueFs = 13;
-  const valueLh = 1.15;
-  const kpiBlock = labelFs * labelLh + 2 + valueFs * valueLh;
-  const kpiPad = (kpiH - kpiBlock) / 2;
-  news.kpis.forEach((k, i) => {
-    const x = M + i * (kpiW + kpiGap);
-    parts.push(shape('rect', { x: n(x), y: n(y), width: kpiW, height: kpiH, fill: CREAM, 'stroke-width': 1.5 }));
-    const anchor = k.align === 'right' ? 'end' : 'start';
-    const tx = k.align === 'right' ? x + kpiW - 8 : x + 8;
-    parts.push(txt(tx, baseline(y + kpiPad, labelFs, labelLh), k.label, {
-      family: SANS, size: labelFs, weight: 700, fill: INK, anchor,
-    }));
-    parts.push(txt(tx, baseline(y + kpiPad + labelFs * labelLh + 2, valueFs, valueLh), k.value, {
-      family: SANS, size: valueFs, weight: 700, fill: INK, anchor,
-    }));
-  });
-  y += kpiH + 3;
-
-  const tickH = 16;
-  const tickW = inner / news.ticks.length;
-  news.ticks.forEach((t, i) => {
-    const cx = M + tickW * i + tickW / 2;
-    parts.push(txt(cx, baseline(y, 9, 1.25), t, {
-      family: SANS, size: 9, weight: 600, fill: INK, anchor: 'middle',
-    }));
-  });
-  y += tickH + 3;
-
   const regionH = 22;
+  const regionFs = 11;
   const widths = segmentWidths(inner);
   let rx = M;
   REGIONS.forEach((r, i) => {
@@ -454,8 +584,8 @@ function buildSvg() {
       x: n(rx), y: n(y), width: widths[i], height: regionH,
       fill: REGION_FILL[r], stroke: INK, 'stroke-width': 1,
     }));
-    parts.push(txt(rx + 6, y + 15, `${r} ${counts[r]}`, {
-      family: SANS, size: 11, weight: 700, fill: REGION_INK[r],
+    parts.push(txt(rx + 6, baseline(y, regionFs, regionH / regionFs), `${r} ${counts[r]}`, {
+      family: SANS, size: regionFs, weight: 700, fill: REGION_INK[r],
     }));
     rx += widths[i];
   });
@@ -463,145 +593,147 @@ function buildSvg() {
 
   const gap = 8;
   const leadW = (inner - gap * 3) / 4;
-  const pad = 8;
-  const artH = 110;
+  const pad = 9;
+  const artH = 140;
   const artGap = 10;
-  const titleFs = 13;
+  const tagFs = 10;
+  const tagLh = 1.25;
+  const titleFs = 20;
   const titleLh = 1.18;
-  const beforeDeck = 4;
-  const deckFs = 10.5;
-  const deckLh = 1.32;
-  const beforeMeta = 3;
-  const metaFs = 8.5;
-  const metaLh = 1.3;
-  const leadH = pad + artH + artGap + titleFs * titleLh * 2 + beforeDeck + deckFs * deckLh * 2 + beforeMeta + metaFs * metaLh + pad;
+  const deckFs = 11.5;
+  const deckLh = 1.35;
+  const srcFs = 9;
+  const srcLh = 1.3;
+  const leadH = pad + artH + artGap + tagFs * tagLh + 2 + titleFs * titleLh * 2 + 3 + deckFs * deckLh * 2 + 2 + srcFs * srcLh + pad;
 
   leads.forEach((s, i) => {
     const x = M + i * (leadW + gap);
     parts.push(shape('rect', { x: n(x), y: n(y), width: n(leadW), height: n(leadH), fill: CREAM, 'stroke-width': 1.5 }));
     const aw = leadW - pad * 2;
-    parts.push(`<g transform="translate(${n(x + pad)},${n(y + pad)})">${ART[s.art](aw, artH)}</g>`);
+    parts.push(`<g transform="translate(${n(x + pad)},${n(y + pad)})">${ART[s.art](aw, artH, s.scoop)}</g>`);
     let ty = y + pad + artH + artGap;
+    parts.push(txt(x + pad, baseline(ty, tagFs, tagLh), `${s.region} · ${PLACE[s.id]}`, {
+      family: SANS, size: tagFs, weight: 700, fill: INK,
+    }));
+    parts.push(txt(x + leadW - pad, baseline(ty, tagFs, tagLh), s.tag, {
+      family: SANS, size: tagFs, weight: 700, fill: TAG_FILL[s.tag], anchor: 'end',
+    }));
+    ty += tagFs * tagLh + 2;
     s.title.forEach((line, li) => {
       parts.push(txt(x + pad, baseline(ty, titleFs, titleLh, li), line, {
         family: PLAY, size: titleFs, weight: 700, fill: INK,
       }));
     });
-    ty += titleFs * titleLh * 2 + beforeDeck;
+    ty += titleFs * titleLh * 2 + 3;
     s.deck.forEach((line, li) => {
       parts.push(txt(x + pad, baseline(ty, deckFs, deckLh, li), line, {
         family: SERIF, size: deckFs, weight: 400, fill: INK,
       }));
     });
-    ty += deckFs * deckLh * 2 + beforeMeta;
-    const meta = `${String(s.id).padStart(2, '0')} · ${s.tag} · ${s.source}`;
-    parts.push(txt(x + pad, baseline(ty, metaFs, metaLh), meta, {
-      family: SANS, size: metaFs, weight: 700, fill: TAG_FILL[s.tag],
+    ty += deckFs * deckLh * 2 + 2;
+    parts.push(txt(x + pad, baseline(ty, srcFs, srcLh), s.source, {
+      family: SANS, size: srcFs, weight: 500, fill: INK,
     }));
   });
-  y += leadH + 5;
+  y += leadH + 6;
 
   const midW = (inner - gap * 4) / 5;
-  const midArt = 54;
+  const midPad = 7;
+  const midArt = 60;
   const midArtGap = 8;
-  const midTitleFs = 11.5;
-  const midTitleLh = 1.18;
-  const midBefore = 3;
-  const midDeckFs = 9.5;
-  const midDeckLh = 1.32;
-  const midMetaFs = 8;
-  const midMetaLh = 1.3;
-  const midH = pad + midArt + midArtGap + midTitleFs * midTitleLh * 2 + midBefore + midDeckFs * midDeckLh + 2 + midMetaFs * midMetaLh + pad;
+  const midTitleFs = 12.5;
+  const midTitleLh = 1.2;
+  const midDeckFs = 10;
+  const midDeckLh = 1.3;
+  const midH = midPad + midArt + midArtGap + midTitleFs * midTitleLh * 2 + 3 + midDeckFs * midDeckLh + midPad;
 
   mids.forEach((s, i) => {
     const col = i % 5;
     const row = Math.floor(i / 5);
     const x = M + col * (midW + gap);
-    const cy = y + row * (midH + 5);
+    const cy = y + row * (midH + 6);
     parts.push(shape('rect', { x: n(x), y: n(cy), width: n(midW), height: n(midH), fill: CREAM, 'stroke-width': 1.5 }));
-    const aw = midW - pad * 2;
-    parts.push(`<g transform="translate(${n(x + pad)},${n(cy + pad)})">${ART[s.art](aw, midArt)}</g>`);
-    let ty = cy + pad + midArt + midArtGap;
+    const aw = midW - midPad * 2;
+    parts.push(`<g transform="translate(${n(x + midPad)},${n(cy + midPad)})">${ART[s.art](aw, midArt, s.scoop)}</g>`);
+    parts.push(chip(x + midW - midPad - 31, cy + midPad + 3, s.tag));
+    let ty = cy + midPad + midArt + midArtGap;
     s.title.forEach((line, li) => {
-      parts.push(txt(x + pad, baseline(ty, midTitleFs, midTitleLh, li), line, {
+      parts.push(txt(x + midPad, baseline(ty, midTitleFs, midTitleLh, li), line, {
         family: PLAY, size: midTitleFs, weight: 700, fill: INK,
       }));
     });
-    ty += midTitleFs * midTitleLh * 2 + midBefore;
-    parts.push(txt(x + pad, baseline(ty, midDeckFs, midDeckLh), s.deck[0], {
+    ty += midTitleFs * midTitleLh * 2 + 3;
+    parts.push(txt(x + midPad, baseline(ty, midDeckFs, midDeckLh), s.deck[0], {
       family: SERIF, size: midDeckFs, weight: 400, fill: INK,
     }));
-    ty += midDeckFs * midDeckLh + 2;
-    const meta = `${String(s.id).padStart(2, '0')} · ${s.tag} · ${s.source}`;
-    parts.push(txt(x + pad, baseline(ty, midMetaFs, midMetaLh), meta, {
-      family: SANS, size: midMetaFs, weight: 700, fill: TAG_FILL[s.tag],
-    }));
   });
-  y += midH * 2 + 5 + 5;
+  y += midH * 2 + 6 + 5;
 
-  const bottomLimit = W - M;
-  const dateFs2 = 10.5;
+  const footFs = 8.5;
+  const footLh = 1.3;
+  const footH = footFs * footLh;
+  const dateLines = news.dateCheck;
+  const dateFs2 = 10;
   const dateLh2 = 1.3;
-  const dateH = 7 + dateFs2 * dateLh2 + 7;
-  const footFs = 10;
-  const footH = footFs * 1.3;
-  const mapTop = y;
-  const mapBottom = bottomLimit - dateH - 4 - footH - 3;
-  if (mapBottom - mapTop < 180) throw new Error(`map band too short ${mapBottom - mapTop}`);
+  const datePad = 4;
+  const dateH = datePad + dateFs2 * dateLh2 * dateLines.length + datePad;
+  const bottom = W - M;
+  const footerTop = bottom - footH;
+  const dateTop = footerTop - 3 - dateH;
+  const bandTop = y;
+  const bandH = dateTop - 4 - bandTop;
+  if (bandH < 190) throw new Error(`band too short ${bandH}`);
 
-  const mapW = 268;
+  const mapW = 330;
+  const mapped = [...leads, ...mids].map((s) => ({ ...s, pin: s._snap || s.pin }));
+  parts.push(drawMap(M, bandTop, mapW, bandH, mapped));
+
   const briefsX = M + mapW + 8;
-  const titleFs2 = 11;
-  parts.push(txt(M, baseline(mapTop, titleFs2, 1.2), 'WHERE IT HAPPENED', {
-    family: SANS, size: titleFs2, weight: 700, fill: INK,
-  }));
-  parts.push(txt(briefsX, baseline(mapTop, titleFs2, 1.2), 'REGIONAL BRIEFS', {
-    family: SANS, size: titleFs2, weight: 700, fill: INK,
-  }));
-  const bodyTop = mapTop + titleFs2 * 1.2 + 3;
-  const bodyH = mapBottom - bodyTop;
-  parts.push(drawMap(M, bodyTop, mapW, bodyH, stories));
-
-  const colGap = 8;
   const briefsW = inner - mapW - 8;
+  const colGap = 8;
   const colW = (briefsW - colGap * 2) / 3;
   const groups = [['EUR'], ['MEA', 'AFR', 'SAS'], ['EAS', 'OCE', 'AME']];
-  const bFs = 8.5;
-  const bLh = 1.28;
-  const bGap = 2;
+  const bFs = 9.5;
+  const bLh = 1.35;
+  const lineH = bFs * bLh;
   groups.forEach((regs, ci) => {
     const x = briefsX + ci * (colW + colGap);
-    let by = bodyTop;
+    const tagW = textWidth('CNF', bFs);
+    const titleMax = colW - tagW - 8;
+    let by = bandTop;
+    let first = true;
     for (const r of regs) {
-      parts.push(el('rect', {
-        x: n(x), y: n(by + 2), width: 7, height: 7, fill: REGION_FILL[r], stroke: INK, 'stroke-width': 1,
-      }));
-      parts.push(txt(x + 11, baseline(by, bFs, bLh), REGION_NAME[r], {
+      if (!first) by += 3;
+      first = false;
+      parts.push(txt(x, baseline(by, bFs, bLh), REGION_NAME[r], {
         family: SANS, size: bFs, weight: 700, fill: INK,
       }));
-      by += bFs * bLh + bGap;
+      by += lineH;
       for (const s of briefs.filter((b) => b.region === r)) {
-        const line = `${s.id} ${s.line} ${s.tag} · ${s.source}`;
+        let line = s.line;
+        while (line.length > 1 && textWidth(line, bFs) > titleMax) line = line.slice(0, -1);
+        line = line.trimEnd();
         parts.push(txt(x, baseline(by, bFs, bLh), line, {
           family: SANS, size: bFs, weight: 500, fill: INK,
         }));
-        by += bFs * bLh + bGap;
+        parts.push(txt(x + colW, baseline(by, bFs, bLh), TAG3[s.tag], {
+          family: SANS, size: bFs, weight: 700, fill: TAG_FILL[s.tag], anchor: 'end',
+        }));
+        by += lineH;
       }
     }
-    if (by > mapBottom + 1) throw new Error(`briefs column ${ci} overflow ${by} > ${mapBottom}`);
+    if (by > bandTop + bandH + 1) throw new Error(`briefs column ${ci} overflow ${n(by)} > ${n(bandTop + bandH)}`);
   });
 
-  y = mapBottom + 4;
-  parts.push(el('rect', { x: M, y: n(y), width: inner, height: n(dateH), fill: RED, stroke: 'none' }));
-  parts.push(txt(M + 8, baseline(y + 7, dateFs2, dateLh2), news.dateCheck, {
-    family: SANS, size: dateFs2, weight: 700, fill: WHITE,
-  }));
-  y += dateH + 3;
-  parts.push(txt(M, baseline(y, footFs, 1.3), news.footer, {
+  parts.push(el('rect', { x: M, y: n(dateTop), width: inner, height: n(dateH), fill: RED, stroke: 'none' }));
+  dateLines.forEach((line, i) => {
+    parts.push(txt(M + 8, baseline(dateTop + datePad, dateFs2, dateLh2, i), line, {
+      family: SANS, size: dateFs2, weight: 700, fill: WHITE,
+    }));
+  });
+  parts.push(txt(M, baseline(footerTop, footFs, footLh), news.footer, {
     family: SANS, size: footFs, weight: 500, fill: INK,
   }));
-  y += footH;
-  if (y > bottomLimit + 0.5) throw new Error(`plate overflow ${y}`);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
@@ -610,16 +742,11 @@ ${parts.join('\n')}
 }
 
 function drawMap(x, y, w, h, items) {
-  const pad = 8;
+  const pad = 6;
   const ix = x + pad;
   const iy = y + pad;
   const iw = w - pad * 2;
   const ih = h - pad * 2;
-  const inset = 6;
-  const px0 = ix + inset;
-  const py0 = iy + inset;
-  const pw = iw - inset * 2;
-  const ph = ih - inset * 2;
   const lon0 = -180;
   const lon1 = 180;
   let lat0 = 90;
@@ -631,16 +758,15 @@ function drawMap(x, y, w, h, items) {
     }
   }
   for (const s of items) {
-    if (!s.pin) continue;
     if (s.pin[1] < lat0) lat0 = s.pin[1];
     if (s.pin[1] > lat1) lat1 = s.pin[1];
   }
-  const latPad = Math.max(6, (lat1 - lat0) * 0.06);
+  const latPad = Math.max(4, (lat1 - lat0) * 0.08);
   lat0 -= latPad;
   lat1 += latPad;
   const project = (lon, lat) => [
-    px0 + ((lon - lon0) / (lon1 - lon0)) * pw,
-    py0 + ((lat1 - lat) / (lat1 - lat0)) * ph,
+    ix + ((lon - lon0) / (lon1 - lon0)) * iw,
+    iy + ((lat1 - lat) / (lat1 - lat0)) * ih,
   ];
   const out = [];
   out.push(`<defs><clipPath id="mapclip"><rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="${n(ih)}"/></clipPath></defs>`);
@@ -651,25 +777,25 @@ function drawMap(x, y, w, h, items) {
       const [px, py] = project(p[0], p[1]);
       return `${i ? 'L' : 'M'}${n(px)},${n(py)}`;
     }).join('') + 'Z';
-    out.push(el('path', { d, fill: CREAM, stroke: INK, 'stroke-width': 1, 'stroke-linejoin': 'round' }));
+    out.push(el('path', { d, fill: CREAM, stroke: INK, 'stroke-width': 0.8, 'stroke-linejoin': 'round' }));
   }
   const [ex1] = project(lon0, 0);
   const [, ey] = project(0, 0);
   const [ex2] = project(lon1, 0);
   out.push(el('path', { d: `M${n(ex1)} ${n(ey)} H${n(ex2)}`, stroke: MUST, 'stroke-width': 1, fill: 'none' }));
 
-  const pinM = 5;
-  const pins = items.filter((s) => s.pin).map((s) => {
+  const pinM = 8;
+  const pins = items.map((s) => {
     let [px, py] = project(s.pin[0], s.pin[1]);
     px = Math.min(Math.max(px, ix + pinM), ix + iw - pinM);
     py = Math.min(Math.max(py, iy + pinM), iy + ih - pinM);
-    return { id: s.id, x: px, y: py, lon: s.pin[0], lat: s.pin[1], region: s.region };
+    return { id: s.id, x: px, y: py, region: s.region };
   });
   const parent = pins.map((_, i) => i);
   const find = (a) => (parent[a] === a ? a : (parent[a] = find(parent[a])));
   for (let i = 0; i < pins.length; i++) {
     for (let j = i + 1; j < pins.length; j++) {
-      if (Math.hypot(pins[i].x - pins[j].x, pins[i].y - pins[j].y) < 9) parent[find(j)] = find(i);
+      if (Math.hypot(pins[i].x - pins[j].x, pins[i].y - pins[j].y) < 6) parent[find(j)] = find(i);
     }
   }
   const groups = new Map();
@@ -678,98 +804,62 @@ function drawMap(x, y, w, h, items) {
     if (!groups.has(f)) groups.set(f, []);
     groups.get(f).push(p);
   });
-
   for (const p of pins) {
-    const fill = p.region === 'AME' ? INK : REGION_FILL[p.region];
-    out.push(el('circle', { cx: n(p.x), cy: n(p.y), r: 4.2, fill: CREAM, stroke: 'none' }));
-    out.push(el('circle', { cx: n(p.x), cy: n(p.y), r: 3.1, fill, stroke: INK, 'stroke-width': 1 }));
+    const fill = p.region === 'AME' || p.region === 'EUR' ? INK : REGION_FILL[p.region];
+    out.push(el('circle', { cx: n(p.x), cy: n(p.y), r: 5, fill: CREAM, stroke: 'none' }));
+    out.push(el('circle', { cx: n(p.x), cy: n(p.y), r: 3.4, fill, stroke: INK, 'stroke-width': 1 }));
   }
 
-  const obstacles = pins.map((p) => ({ x: p.x - 4, y: p.y - 4, w: 8, h: 8 }));
+  const obstacles = pins.map((p) => ({ x: p.x - 6, y: p.y - 6, w: 12, h: 12 }));
   const bounds = { x: ix + 1, y: iy + 1, w: iw - 2, h: ih - 2 };
   function overlap(a, b, m = 1) {
     return a.x < b.x + b.w + m && a.x + a.w + m > b.x && a.y < b.y + b.h + m && a.y + a.h + m > b.y;
   }
-  function wrapIds(ids) {
-    const sorted = [...ids].sort((a, b) => a - b);
-    const tokens = [];
-    let i = 0;
-    while (i < sorted.length) {
-      let j = i;
-      while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j += 1;
-      tokens.push(j >= i + 2 ? `${sorted[i]}–${sorted[j]}` : sorted.slice(i, j + 1).join('·'));
-      i = j + 1;
-    }
-    const lines = [];
-    let cur = '';
-    for (const t of tokens) {
-      const next = cur ? `${cur}·${t}` : t;
-      if (next.length > 11 && cur) {
-        lines.push(cur);
-        cur = t;
-      } else cur = next;
-    }
-    if (cur) lines.push(cur);
-    return lines;
-  }
-
+  const dirs = [[1, -0.3], [-1, -0.3], [0.2, -1], [0.2, 1], [1.1, 0.6], [-1.1, 0.6]];
   for (const group of groups.values()) {
-    const ids = group.map((p) => p.id);
-    const lines = wrapIds(ids);
-    const fs = 7.5;
-    const lh = fs * 1.25;
-    const bw = Math.max(...lines.map((l) => l.length * 4.15)) + 6;
-    const bh = lines.length * lh + 3;
+    const ids = group.map((p) => p.id).sort((a, b) => a - b);
+    const label = ids.join('·');
+    const fs = 9;
+    const bw = Math.max(16, label.length * 6.2 + 6);
+    const bh = 14;
     const cx = group.reduce((a, p) => a + p.x, 0) / group.length;
     const cy = group.reduce((a, p) => a + p.y, 0) / group.length;
-    const lon = group.reduce((a, p) => a + p.lon, 0) / group.length;
-    const lat = group.reduce((a, p) => a + p.lat, 0) / group.length;
-    let prefer = null;
-    if (group.length >= 5 && lon < 45 && lat > 28) prefer = project(-40, 50);
-    else if (group.length >= 4 && lat < -25 && lon > 120 && lon < 165) prefer = project(145, -50);
-    else if (lon > 165 && lat < -30) prefer = project(162, -36);
-    const dirs = [[-1, -0.2], [1, -0.2], [0, -1], [0, 1], [-1, 0.6], [1, 0.7], [-0.4, -1.2], [1.2, -0.8]];
     let box = null;
-    const seeds = prefer ? [[prefer[0] - bw / 2, prefer[1] - bh / 2]] : [];
-    for (const dist of [14, 26, 40, 58]) {
+    const seeds = [];
+    for (const dist of [12, 22, 34]) {
       for (const [dx, dy] of dirs) seeds.push([cx + dx * dist - bw / 2, cy + dy * dist - bh / 2]);
     }
     for (const [lx, ly] of seeds) {
       const trial = { x: lx, y: ly, w: bw, h: bh };
-      if (trial.x < bounds.x + 1 || trial.y < bounds.y + 1) continue;
-      if (trial.x + trial.w > bounds.x + bounds.w - 1 || trial.y + trial.h > bounds.y + bounds.h - 1) continue;
+      if (trial.x < bounds.x || trial.y < bounds.y) continue;
+      if (trial.x + trial.w > bounds.x + bounds.w || trial.y + trial.h > bounds.y + bounds.h) continue;
       if (obstacles.some((o) => overlap(o, trial, 1))) continue;
       box = trial;
       break;
     }
     if (!box) {
-      const minX = bounds.x;
-      const minY = bounds.y;
-      const maxX = bounds.x + bounds.w - bw;
-      const maxY = bounds.y + bounds.h - bh;
       box = {
-        x: maxX >= minX ? Math.min(Math.max(cx + 6, minX), maxX) : minX,
-        y: maxY >= minY ? Math.min(Math.max(cy - bh - 4, minY), maxY) : minY,
+        x: Math.min(Math.max(cx + 8, bounds.x), bounds.x + bounds.w - bw),
+        y: Math.min(Math.max(cy - bh - 4, bounds.y), bounds.y + bounds.h - bh),
         w: bw, h: bh,
       };
     }
     obstacles.push(box);
+    const lx = box.x + box.w / 2;
+    const ly = box.y + box.h / 2;
+    if (Math.hypot(lx - cx, ly - cy) > 16) {
+      out.push(el('path', {
+        d: `M${n(cx)} ${n(cy)} L${n(lx)} ${n(ly)}`,
+        stroke: INK, 'stroke-width': 0.7, fill: 'none',
+      }));
+    }
     out.push(el('rect', {
       x: n(box.x), y: n(box.y), width: n(box.w), height: n(box.h),
       fill: CREAM, stroke: INK, 'stroke-width': 1,
     }));
-    const near = Math.hypot(cx - (box.x + box.w / 2), cy - (box.y + box.h / 2)) < 16;
-    if (!near) {
-      out.push(el('path', {
-        d: `M${n(cx)} ${n(cy)} L${n(box.x + box.w / 2)} ${n(box.y + box.h / 2)}`,
-        stroke: INK, 'stroke-width': 0.8, fill: 'none',
-      }));
-    }
-    lines.forEach((line, li) => {
-      out.push(txt(box.x + 3, box.y + 2 + baseline(0, fs, 1.25, li), line, {
-        family: SANS, size: fs, weight: 700, fill: INK,
-      }));
-    });
+    out.push(txt(box.x + bw / 2, baseline(box.y, fs, bh / fs), label, {
+      family: SANS, size: fs, weight: 700, fill: INK, anchor: 'middle',
+    }));
   }
   out.push('</g>');
   return out.join('');
@@ -822,11 +912,11 @@ function launchChrome(extra, timeout) {
     pathToFileURL(htmlPath).href,
   ], { stdio: 'inherit', timeout, env: chromeEnv });
 }
-let chrome = launchChrome([`--user-data-dir=${profile}`], 12000);
+let chrome = launchChrome([`--user-data-dir=${profile}`], 20000);
 if (chrome.status !== 0 || !existsSync(rawPath)) {
   spawnSync('pkill', ['-f', profile], { stdio: 'ignore' });
   try { unlinkSync(rawPath); } catch { /* no partial screenshot */ }
-  chrome = launchChrome([], 30000);
+  chrome = launchChrome([], 40000);
 }
 if (chrome.status !== 0 || !existsSync(rawPath)) process.exit(chrome.status ?? 1);
 
@@ -846,7 +936,7 @@ if im.size != (1024, 1024):
 im.save(png, 'PNG', optimize=True)
 im.resize((300, 300), Image.Resampling.LANCZOS).save(preview, 'PNG', optimize=True)
 print(f'{png} {os.path.getsize(png)} bytes RGB {im.size[0]}x{im.size[1]}')
-print('Layout: 48-story cartoon Sunday Globe, 16px margin, 4 lead cards, 10 mids, briefs beside a lon/lat map.')
+print('Layout: 49-story Sunday Globe, 14px margin, 72px date, four 140px lead arts, ten mids, 35 one-line briefs beside a 330px map.')
 `], { encoding: 'utf8' });
 if (py.status !== 0) {
   console.error(py.stderr);
@@ -880,3 +970,4 @@ if (!published && !localPng) {
 }
 const shown = localPng ? join(root, 'entry.png') : join(outDir, 'entry.png');
 console.log(`${shown} ${statSync(shown).size} bytes`);
+console.log(REGIONS.map((r) => `${r} ${counts[r]}`).join(' '));

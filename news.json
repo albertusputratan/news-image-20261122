@@ -1,156 +1,146 @@
 {
   "masthead": "THE SUNDAY GLOBE",
   "date": "Sunday 22 November 2026",
-  "standfirst": "Antalya waits on a 06:00 vote, Manama reports a strike, Sparta II burns in the Baltic, and Pant's 128 carries India to 720.",
-  "scoopLine": "The gavel is still holstered, Pant has the sixes, and the Turin final is still in its box.",
-  "kpis": [
-    { "label": "COP31 TEXT", "value": "Not yet voted", "align": "left" },
-    { "label": "INDIA INNINGS", "value": "720-9", "align": "right" },
-    { "label": "PANT", "value": "128", "align": "right" },
-    { "label": "HK FIRST HOUR", "value": "45%", "align": "right" },
-    { "label": "BITCOIN", "value": ">$60,000", "align": "right" },
-    { "label": "RUTTE", "value": "Every inch", "align": "left" }
+  "standfirst": "COP31 collapses in Antalya, 186 drones hit Ukraine overnight, Pant's 128 carries India to 720, Verstappen wins in Vegas",
+  "scoopLine": "Consensus left the hall, Vegas changed hands 35 times, Turin is still canned, and the card-cap promise is still a promise.",
+  "dateCheck": [
+    "DATE CHECK · Thu 19 Nov: Cairncross ousted. Fri 20 Nov: Russia's 400-drone/110-missile Kyiv barrage; EU–UK reset; Riemann claim; Peru M6.8 (00:09 UTC Sat).",
+    "Off this plate too: Nvidia SEC probe (Fri); Estonia border decision (15 Nov); Kryvyi Rih strike (Fri night). Not yet at 13:40 UTC: ATP final, India–NZ day 5, Liverpool v Man United."
   ],
-  "ticks": [
-    "03:00 GMT · Objections due",
-    "06:00 GMT · Vote not held",
-    "09:00–18:00 HKT · Hong Kong polls",
-    "Tea, Basin Reserve · NZ 33-1"
-  ],
-  "dateCheck": "DATE CHECK · Off this plate: Friday's Kyiv barrage and Peru's M6.8. Not yet held at 03:45 UTC: COP31's 06:00 GMT vote, the Las Vegas GP, and the Turin final.",
-  "footer": "Every story happened or was first reported on Sunday 22 November 2026 in at least one time zone. Sources named on each item. Original drawings; no photographs.",
+  "footer": "Sources: Reuters, AP, AFP, BBC, Kyiv Independent, ESPNcricinfo, Sky Sports, Al Jazeera, RTHK, PTI, ATP. CNF confirmed · REP reported · OFF official · CLM claim · FCT forecast. Original drawings, no photographs.",
   "stories": [
     {
-      "id": 1, "tier": "lead", "region": "EUR", "tag": "REPORTED",
-      "source": "Reuters, Independent, BBC",
-      "title": ["Antalya text waits", "on a Sunday vote"],
-      "deck": ["Objections ran to 03:00 GMT Sunday.", "The 06:00 vote had not been held."],
-      "pin": [30.7, 36.9], "art": "cop31", "scoop": "No gavel yet."
+      "id": 1, "tier": "lead", "region": "EUR", "tag": "CONFIRMED",
+      "source": "Reuters, BBC, Straits Times",
+      "title": ["COP31 collapses", "in Antalya"],
+      "deck": ["No consensus: the text was not adopted.", "EU called the draft greenwashing."],
+      "pin": [30.7, 36.9], "art": "cop31", "scoop": "Consensus went home."
     },
     {
-      "id": 2, "tier": "lead", "region": "MEA", "tag": "REPORTED",
+      "id": 2, "tier": "lead", "region": "EUR", "tag": "REPORTED",
+      "source": "Kyiv Independent, Reuters",
+      "title": ["186 drones hit", "the Kyiv region"],
+      "deck": ["Dymer: up to 14 feared trapped.", "161 downed; at least 2 people hurt."],
+      "pin": [30.3, 50.8], "art": "kyiv"
+    },
+    {
+      "id": 3, "tier": "lead", "region": "OCE", "tag": "CONFIRMED",
+      "source": "ESPNcricinfo, AFP, Onmanorama",
+      "title": ["Pant's 128 takes", "India to 720-9"],
+      "deck": ["Highest Test total in New Zealand.", "NZ 119-2; Conway 59 not out."],
+      "pin": [174.8, -41.3], "art": "pant"
+    },
+    {
+      "id": 4, "tier": "lead", "region": "AME", "tag": "CONFIRMED",
+      "source": "Reuters, Sky Sports, The Race",
+      "title": ["Verstappen wins", "in Las Vegas"],
+      "deck": ["0.639s over Norris; 35 lead changes.", "Piastri 3rd; 37 pts clear for 2nd."],
+      "pin": [-115.2, 36.1], "art": "vegas", "scoop": "Blink. New leader."
+    },
+    {
+      "id": 5, "tier": "mid", "region": "MEA", "tag": "REPORTED",
       "source": "Reuters, Al Jazeera, CNA",
-      "title": ["Manama reports a hit", "on an industrial site"],
-      "deck": ["A fire, no injuries; defences fired.", "CENTCOM denies an F-16 was damaged."],
+      "title": ["Manama says Iran", "hit an industrial site"],
+      "deck": ["Fire, no injuries; F-16 hit denied."],
       "pin": [50.6, 26.2], "art": "bahrain"
     },
     {
-      "id": 3, "tier": "lead", "region": "EUR", "tag": "REPORTED",
-      "source": "Reuters, AFP, Yle",
-      "title": ["Sparta II ablaze", "in the Gulf of Finland"],
-      "deck": ["Finland points to Ukraine as likely.", "Sixteen crew left for a Russian ship."],
-      "pin": [26.3, 60.2], "water": true, "art": "sparta"
-    },
-    {
-      "id": 4, "tier": "lead", "region": "OCE", "tag": "CONFIRMED",
-      "source": "AFP, Indian Express, IANS",
-      "title": ["Pant makes 128", "as India declare 720"],
-      "deck": ["Ninth Test ton; 108 sixes, second to Stokes.", "NZ 33-1 at tea; Latham a pair."],
-      "pin": [174.8, -41.3], "art": "pant", "scoop": "Look surprised."
-    },
-    {
-      "id": 5, "tier": "mid", "region": "EAS", "tag": "REPORTED",
-      "source": "SCMP, HK gov",
-      "title": ["Hong Kong polls open", "with a 45% first hour"],
-      "deck": ["856 candidates, 723 seats, to 18:00."],
+      "id": 6, "tier": "mid", "region": "EAS", "tag": "OFFICIAL",
+      "source": "RTHK, HK govt",
+      "title": ["Hong Kong polls", "close at 98.79%"],
+      "deck": ["5,640 voters; counting runs overnight."],
       "pin": [114.2, 22.3], "art": "hk"
     },
     {
-      "id": 6, "tier": "mid", "region": "AME", "tag": "OFFICIAL",
-      "source": "Reuters, BBC",
-      "title": ["Mexico holds El Chapo", "Isidro and two others"],
-      "deck": ["Security chief confirms the capture."],
+      "id": 7, "tier": "mid", "region": "AME", "tag": "OFFICIAL",
+      "source": "AP",
+      "title": ["Mexico holds", "El Chapo Isidro"],
+      "deck": ["Eight arrested; firefight left 11 dead."],
       "pin": [-107.4, 24.8], "art": "mexico"
     },
     {
-      "id": 7, "tier": "mid", "region": "EUR", "tag": "OFFICIAL",
+      "id": 8, "tier": "mid", "region": "SAS", "tag": "CONFIRMED",
+      "source": "PTI, The Tribune",
+      "title": ["Nepal PM Shah", "arrives in Delhi"],
+      "deck": ["34-member visit; Modi talks Monday."],
+      "pin": [77.2, 28.6], "art": "delhi", "scoop": "34 just to say hello."
+    },
+    {
+      "id": 9, "tier": "mid", "region": "MEA", "tag": "OFFICIAL",
+      "source": "AP, Times of Israel",
+      "title": ["Eisenkot condemns", "West Bank arson"],
+      "deck": ["He calls the attacks Jewish terrorism."],
+      "pin": [35.2, 31.8], "art": "eisenkot"
+    },
+    {
+      "id": 10, "tier": "mid", "region": "AFR", "tag": "REPORTED",
+      "source": "Daily Nation, Daily News Egypt",
+      "title": ["Ruto, Tshisekedi", "meet in Oyo"],
+      "deck": ["Talks aim to repair strained ties."],
+      "pin": [15.9, -1.2], "art": "oyo"
+    },
+    {
+      "id": 11, "tier": "mid", "region": "AME", "tag": "CONFIRMED",
+      "source": "Reuters, AP",
+      "title": ["Wembanyama scores", "50 for the Spurs"],
+      "deck": ["19 rebounds; Spurs beat the Pelicans."],
+      "pin": [-98.5, 29.4], "art": "wemby", "scoop": "The hoop noticed."
+    },
+    {
+      "id": 12, "tier": "mid", "region": "EAS", "tag": "CONFIRMED",
       "source": "Reuters",
-      "title": ["Rutte: NATO will defend", "every inch of Poland"],
-      "deck": ["Missiles and a drone crossed in."],
-      "pin": [21.0, 52.2], "art": "nato", "scoop": "Every inch."
+      "title": ["Candy-plant fire", "in Cikande"],
+      "deck": ["3 dead, 4 hurt, 36 workers missing."],
+      "pin": [106.3, -6.2], "art": "fire"
     },
     {
-      "id": 8, "tier": "mid", "region": "MEA", "tag": "OFFICIAL",
-      "source": "France 24, AFP",
-      "title": ["Eisenkot opens talks", "with Likud on Sunday"],
-      "deck": ["No majority. Bennett rejects him."],
-      "pin": [35.2, 31.8], "art": "talks"
+      "id": 13, "tier": "mid", "region": "MEA", "tag": "REPORTED",
+      "source": "Anadolu, Daily Sabah, AP",
+      "title": ["Hamas seeks talks", "after Gaza strike"],
+      "deck": ["3 killed; Israel cites Islamic Jihad."],
+      "pin": [34.5, 31.5], "art": "gaza"
     },
     {
-      "id": 9, "tier": "mid", "region": "MEA", "tag": "REPORTED",
-      "source": "AFP, RFE/RL",
-      "title": ["Iran begins rolling", "electricity rationing"],
-      "deck": ["Fuel is short; offices already cut back."],
-      "pin": [51.4, 35.7], "art": "power"
+      "id": 14, "tier": "mid", "region": "EUR", "tag": "FORECAST",
+      "source": "ATP, Tennis Now",
+      "title": ["Turin final still", "to be played"],
+      "deck": ["Unbeaten Zverev v Alcaraz, 18:00 CET."],
+      "pin": [7.7, 45.1], "art": "tennis", "scoop": "Still in the can."
     },
-    {
-      "id": 10, "tier": "mid", "region": "AME", "tag": "OFFICIAL",
-      "source": "Reuters, Al Jazeera",
-      "title": ["Bolsonaro in ICU", "stable at DF Star"],
-      "deck": ["Stable, breathing unaided; no date."],
-      "pin": [-47.9, -15.8], "art": "icu"
-    },
-    {
-      "id": 11, "tier": "mid", "region": "EUR", "tag": "CONFIRMED",
-      "source": "ABC, Athletic",
-      "title": ["Alcaraz beats Shelton;", "final still to come"],
-      "deck": ["Three sets; the Zverev final is later."],
-      "pin": [7.7, 45.1], "art": "tennis", "scoop": "Still boxed."
-    },
-    {
-      "id": 12, "tier": "mid", "region": "OCE", "tag": "CONFIRMED",
-      "source": "ABC",
-      "title": ["MCG marks 70 years", "since the 1956 Games"],
-      "deck": ["Dawn Fraser attends the reunion."],
-      "pin": [145.0, -37.8], "art": "mcg"
-    },
-    {
-      "id": 13, "tier": "mid", "region": "OCE", "tag": "OFFICIAL",
-      "source": "Reuters, ABC",
-      "title": ["Marles rejects a US view", "that AUKUS shrinks the fleet"],
-      "deck": ["Marles says the CBO report is wrong."],
-      "pin": [149.1, -35.3], "art": "aukus"
-    },
-    {
-      "id": 14, "tier": "mid", "region": "AFR", "tag": "CONFIRMED",
-      "source": "Reuters, Punch",
-      "title": ["Bayelsa boat toll", "rises to 23"],
-      "deck": ["Diri orders a probe; the operator fled."],
-      "pin": [6.3, 4.9], "art": "boat"
-    },
-    { "id": 15, "tier": "brief", "region": "EUR", "tag": "REPORTED", "source": "Reuters", "line": "France rallies calmer.", "pin": [2.3, 48.9] },
-    { "id": 16, "tier": "brief", "region": "EUR", "tag": "OFFICIAL", "source": "BBC", "line": "Denmark expels attaché.", "pin": [12.6, 55.7] },
-    { "id": 17, "tier": "brief", "region": "EUR", "tag": "REPORTED", "source": "TOI", "line": "Zagreb march after death.", "pin": [16.0, 45.8] },
-    { "id": 18, "tier": "brief", "region": "EUR", "tag": "OFFICIAL", "source": "Reuters", "line": "FIDE refers Carlsen.", "pin": [19.0, 47.5] },
-    { "id": 19, "tier": "brief", "region": "EUR", "tag": "CONFIRMED", "source": "Reuters", "line": "Dortmund 1st; Arsenal 2-2.", "pin": [7.5, 51.5] },
-    { "id": 20, "tier": "brief", "region": "EUR", "tag": "CONFIRMED", "source": "BBC", "line": "France 7 tries; SA final.", "pin": [2.3, 48.9] },
-    { "id": 21, "tier": "brief", "region": "EUR", "tag": "CONFIRMED", "source": "BBC", "line": "England beat NZ 37-12.", "pin": [-0.3, 51.5] },
-    { "id": 22, "tier": "brief", "region": "EUR", "tag": "CONFIRMED", "source": "CNA", "line": "Scotland 67-5 Japan.", "pin": [-3.2, 55.9] },
-    { "id": 23, "tier": "brief", "region": "EUR", "tag": "CONFIRMED", "source": "Reuters", "line": "Nadal on Madrid's board.", "pin": [-3.7, 40.4] },
-    { "id": 24, "tier": "brief", "region": "EUR", "tag": "FORECAST", "source": "Reuters", "line": "ATC halt in Belgium Mon.", "pin": [4.4, 50.8] },
-    { "id": 25, "tier": "brief", "region": "MEA", "tag": "REPORTED", "source": "AFP", "line": "Gaza rescuers: 3 killed.", "pin": [34.5, 31.5] },
-    { "id": 26, "tier": "brief", "region": "MEA", "tag": "OFFICIAL", "source": "AJ", "line": "Lebanon demands pullout.", "pin": [35.5, 33.9] },
-    { "id": 27, "tier": "brief", "region": "MEA", "tag": "REPORTED", "source": "UKMTO", "line": "Hormuz tankers hit.", "pin": [56.3, 26.6], "water": true },
-    { "id": 28, "tier": "brief", "region": "AFR", "tag": "OFFICIAL", "source": "DNE", "line": "Sisi: larger African role.", "pin": [31.2, 30.0] },
-    { "id": 29, "tier": "brief", "region": "AFR", "tag": "REPORTED", "source": "Hespress", "line": "Ceuta: 170 minors sought.", "pin": [-5.3, 35.9] },
-    { "id": 30, "tier": "brief", "region": "AFR", "tag": "OFFICIAL", "source": "TimesLIVE", "line": "NYDA: R780m not traced.", "pin": [28.2, -25.7] },
-    { "id": 31, "tier": "brief", "region": "AFR", "tag": "REPORTED", "source": "Nyasa", "line": "Malawi roads: 1,000+ killed.", "pin": [33.8, -13.9] },
-    { "id": 32, "tier": "brief", "region": "SAS", "tag": "REPORTED", "source": "Hindu", "line": "Nepal PM India visit set.", "pin": [85.3, 27.7] },
-    { "id": 33, "tier": "brief", "region": "SAS", "tag": "OFFICIAL", "source": "Reuters", "line": "Manipur toll at least 11.", "pin": [94.0, 24.3] },
-    { "id": 34, "tier": "brief", "region": "SAS", "tag": "OFFICIAL", "source": "NCS", "line": "Myanmar M4.1; no damage.", "pin": [94.6, 24.4] },
-    { "id": 35, "tier": "brief", "region": "SAS", "tag": "REPORTED", "source": "AJ", "line": "Meta given 7 days, India.", "pin": [77.2, 28.6] },
-    { "id": 36, "tier": "brief", "region": "EAS", "tag": "REPORTED", "source": "CNA", "line": "Fullerton breach; scam risk.", "pin": [103.8, 1.35] },
-    { "id": 37, "tier": "brief", "region": "EAS", "tag": "OFFICIAL", "source": "CNA", "line": "YMCA: 13,000+ exposed.", "pin": [103.85, 1.3] },
-    { "id": 38, "tier": "brief", "region": "EAS", "tag": "REPORTED", "source": "Bloomberg", "line": "Takaichi defence row.", "pin": [139.7, 35.7] },
-    { "id": 39, "tier": "brief", "region": "EAS", "tag": "OFFICIAL", "source": "Taipei", "line": "Taiwan minister blocked.", "pin": [113.3, 23.1] },
-    { "id": 40, "tier": "brief", "region": "OCE", "tag": "REPORTED", "source": "NewsWire", "line": "Heat hits S. Australia.", "pin": [145.0, -37.8] },
-    { "id": 41, "tier": "brief", "region": "OCE", "tag": "CONFIRMED", "source": "ABC", "line": "Fred Nile dies at 92.", "pin": [151.2, -33.9] },
-    { "id": 42, "tier": "brief", "region": "OCE", "tag": "REPORTED", "source": "ABC", "line": "NZ sand: probe urged.", "pin": [174.8, -41.3] },
-    { "id": 43, "tier": "brief", "region": "OCE", "tag": "OFFICIAL", "source": "ABC", "line": "Officer shot; man found dead.", "pin": [148.0, -40.0] },
-    { "id": 44, "tier": "brief", "region": "OCE", "tag": "REPORTED", "source": "ABC", "line": "Lightning hits 4 in NSW.", "pin": [151.0, -33.9] },
-    { "id": 45, "tier": "brief", "region": "AME", "tag": "REPORTED", "source": "CNN", "line": "FBI probes NCIC breach.", "pin": [-77.0, 38.9] },
-    { "id": 46, "tier": "brief", "region": "AME", "tag": "REPORTED", "source": "NBC", "line": "Agriculture Dept hacked.", "pin": [-77.0, 38.9] },
-    { "id": 47, "tier": "brief", "region": "AME", "tag": "CLAIM", "source": "Reuters", "line": "Trump: another go, Huang.", "pin": [-122.0, 37.4] },
-    { "id": 48, "tier": "brief", "region": "AME", "tag": "CONFIRMED", "source": "Reuters", "line": "Bitcoin above $60,000." }
+    { "id": 15, "tier": "brief", "region": "EUR", "tag": "REPORTED", "source": "AP, Reuters, Yle", "line": "Sparta II ablaze in Gulf of Finland", "pin": [26.3, 60.2], "water": true },
+    { "id": 16, "tier": "brief", "region": "EUR", "tag": "OFFICIAL", "source": "Reuters", "line": "Rutte: NATO will defend every inch", "pin": [21.0, 52.2] },
+    { "id": 17, "tier": "brief", "region": "EUR", "tag": "OFFICIAL", "source": "BBC", "line": "Denmark expels Russian attaché", "pin": [12.6, 55.7] },
+    { "id": 18, "tier": "brief", "region": "EUR", "tag": "REPORTED", "source": "Reuters", "line": "Sixth rally weekend; turnout down", "pin": [2.3, 48.9] },
+    { "id": 19, "tier": "brief", "region": "EUR", "tag": "CONFIRMED", "source": "AFP", "line": "Arsenal 2-2 Newcastle; Leeds 4-1", "pin": [-1.6, 54.98] },
+    { "id": 20, "tier": "brief", "region": "EUR", "tag": "CONFIRMED", "source": "AFP", "line": "Man City 1-1, fourth game winless", "pin": [-2.2, 53.5] },
+    { "id": 21, "tier": "brief", "region": "EUR", "tag": "CONFIRMED", "source": "BBC", "line": "England beat All Blacks 37-12", "pin": [-0.3, 51.5] },
+    { "id": 22, "tier": "brief", "region": "EUR", "tag": "CONFIRMED", "source": "CNA", "line": "Scotland rout Japan 67-5", "pin": [-3.2, 55.9] },
+    { "id": 23, "tier": "brief", "region": "EUR", "tag": "OFFICIAL", "source": "Reuters", "line": "FIDE refers Carlsen to discipline", "pin": [19.0, 47.5] },
+    { "id": 24, "tier": "brief", "region": "EUR", "tag": "CONFIRMED", "source": "Reuters", "line": "Nadal backed for Real Madrid board", "pin": [-3.7, 40.4] },
+    { "id": 25, "tier": "brief", "region": "MEA", "tag": "REPORTED", "source": "AP", "line": "Houthis: six wounded in Sanaa", "pin": [44.2, 15.4] },
+    { "id": 26, "tier": "brief", "region": "MEA", "tag": "REPORTED", "source": "AFP", "line": "Iran starts electricity rationing", "pin": [51.4, 35.7] },
+    { "id": 27, "tier": "brief", "region": "MEA", "tag": "OFFICIAL", "source": "Al Jazeera", "line": "Lebanon demands Israeli pullout", "pin": [35.5, 33.9] },
+    { "id": 28, "tier": "brief", "region": "MEA", "tag": "REPORTED", "source": "UKMTO", "line": "Tankers hit as Iran tightens sea", "pin": [56.3, 26.6], "water": true },
+    { "id": 29, "tier": "brief", "region": "AFR", "tag": "OFFICIAL", "source": "Daily News Egypt", "line": "Sisi urges global finance reform", "pin": [31.2, 30.0] },
+    { "id": 30, "tier": "brief", "region": "AFR", "tag": "CONFIRMED", "source": "Reuters", "line": "Bayelsa boat disaster toll 23", "pin": [6.3, 4.9] },
+    { "id": 31, "tier": "brief", "region": "AFR", "tag": "OFFICIAL", "source": "TimesLIVE", "line": "NYDA cannot account for R780m", "pin": [28.2, -25.7] },
+    { "id": 32, "tier": "brief", "region": "AFR", "tag": "REPORTED", "source": "Nyasa Times", "line": "Malawi: over 1,000 road deaths", "pin": [33.8, -13.9] },
+    { "id": 33, "tier": "brief", "region": "AFR", "tag": "REPORTED", "source": "Hespress", "line": "Spain seeks 170 minors from Ceuta", "pin": [-5.3, 35.9] },
+    { "id": 34, "tier": "brief", "region": "SAS", "tag": "OFFICIAL", "source": "Reuters", "line": "Manipur liquor: at least 11 dead", "pin": [94.0, 24.3] },
+    { "id": 35, "tier": "brief", "region": "SAS", "tag": "OFFICIAL", "source": "NCS", "line": "Myanmar M4.1 quake; no damage", "pin": [94.6, 24.4] },
+    { "id": 36, "tier": "brief", "region": "SAS", "tag": "REPORTED", "source": "Al Jazeera", "line": "Youth Congress gives Meta 7 days", "pin": [77.2, 28.6] },
+    { "id": 37, "tier": "brief", "region": "EAS", "tag": "REPORTED", "source": "CNA", "line": "Fullerton breach exposes workers", "pin": [103.8, 1.35] },
+    { "id": 38, "tier": "brief", "region": "EAS", "tag": "OFFICIAL", "source": "CNA", "line": "YMCA portal: 13,000+ at risk", "pin": [103.85, 1.3] },
+    { "id": 39, "tier": "brief", "region": "EAS", "tag": "REPORTED", "source": "Bloomberg", "line": "Takaichi faces defence backlash", "pin": [139.7, 35.7] },
+    { "id": 40, "tier": "brief", "region": "EAS", "tag": "OFFICIAL", "source": "Taiwan govt", "line": "China blocks Taiwan APEC minister", "pin": [113.3, 23.1] },
+    { "id": 41, "tier": "brief", "region": "OCE", "tag": "OFFICIAL", "source": "Reuters, ABC", "line": "Marles: US AUKUS fleet view wrong", "pin": [149.1, -35.3] },
+    { "id": 42, "tier": "brief", "region": "OCE", "tag": "REPORTED", "source": "NewsWire", "line": "Southern Australia heatwave", "pin": [145.0, -37.8] },
+    { "id": 43, "tier": "brief", "region": "OCE", "tag": "CONFIRMED", "source": "ABC", "line": "NSW MP Fred Nile dies at 92", "pin": [151.2, -33.9] },
+    { "id": 44, "tier": "brief", "region": "OCE", "tag": "CONFIRMED", "source": "ABC", "line": "MCG marks 70 years since 1956", "pin": [145.0, -37.8] },
+    { "id": 45, "tier": "brief", "region": "AME", "tag": "REPORTED", "source": "AP, CNN", "line": "FBI probes apparent NCIC breach", "pin": [-77.0, 38.9] },
+    { "id": 46, "tier": "brief", "region": "AME", "tag": "REPORTED", "source": "NBC", "line": "Agriculture Dept reportedly hacked", "pin": [-77.0, 38.9] },
+    { "id": 47, "tier": "brief", "region": "AME", "tag": "REPORTED", "source": "AP", "line": "Trump: 10% credit-card rate cap", "pin": [-77.0, 38.9] },
+    { "id": 48, "tier": "brief", "region": "AME", "tag": "OFFICIAL", "source": "Reuters", "line": "Bolsonaro stable, breathing unaided", "pin": [-47.9, -15.8] },
+    { "id": 49, "tier": "brief", "region": "AME", "tag": "REPORTED", "source": "market data", "line": "Bitcoin trades near $60,000", "pin": [-74.0, 40.7] }
   ]
 }
